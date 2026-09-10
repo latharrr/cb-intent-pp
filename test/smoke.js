@@ -195,6 +195,147 @@ console.log('\n8. locked-down webview: no sendBeacon, no fetch, no localStorage'
   ok(!!dd.getElementById('in_name'), 'form still navigates');
 }
 
+
+/* ---------- 9. tap feedback + auto-advance ---------- */
+console.log('\n9. sound, vibration, and auto-advance');
+{
+  const vc = new VirtualConsole(); const errs = [];
+  vc.on('jsdomError', e => errs.push(String(e.message)));
+  const dom = new JSDOM(HTML, { url: 'https://picapool.test/?new=1', runScripts: 'outside-only', virtualConsole: vc, pretendToBeVisual: true });
+  const ww = dom.window;
+  ww.Blob = function (parts) { this.text = parts.join(''); };
+  const bs = [];
+  ww.navigator.sendBeacon = function (u, b) { bs.push(JSON.parse(b.text)); return true; };
+
+  /* record what the page asks the audio + vibration APIs to do */
+  const notes = [];
+  const vibes = [];
+  ww.navigator.vibrate = p => { vibes.push(p); return true; };
+  let resumed = 0;
+  ww.AudioContext = function () {
+    this.currentTime = 0;
+    this.state = 'suspended';
+    this.destination = {};
+    this.resume = () => { resumed++; this.state = 'running'; return Promise.resolve(); };
+    this.createOscillator = () => ({
+      type: '', frequency: { setValueAtTime: (f) => notes.push(f) },
+      connect() {}, start() {}, stop() {}
+    });
+    this.createGain = () => ({
+      gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} },
+      connect() {}
+    });
+  };
+  ww.eval(HTML.slice(HTML.indexOf('<script>') + 8, HTML.indexOf('</script>')));
+  const dd = ww.document;
+  const t = (id, v) => { const e = dd.getElementById(id); e.value = v; e.dispatchEvent(new ww.Event('input', { bubbles: true })); };
+
+  // walk to the first auto-advance screen the ordinary way
+  dd.getElementById('p1cta').click();
+  ok(notes.length > 0, 'first tap constructs the AudioContext and plays a note');
+  ok(resumed > 0, 'suspended context is resumed inside the gesture (iOS needs this)');
+  ok(vibes.length > 0, 'first tap vibrates');
+  t('in_name', 'A'); t('in_college', 'B'); t('in_phone', '9876543210');
+  dd.getElementById('p2next').click();
+  t('in_metro', 'AIIMS'); dd.getElementById('p3next').click();
+  ok(!!dd.getElementById('modeOptions'), 'on step 4 (travel mode)');
+
+  // ---- from here on, NOTHING presses Next ----
+  dd.querySelector('#modeOptions .option[data-mode="Bus"]').click();
+  ok(!!dd.getElementById('modeOptions'), 'still on step 4 right after the tap (selection is visible first)');
+  await wait(600);
+  ok(!!dd.getElementById('in_spend'), 'auto-advanced to step 5 with no Next press');
+
+  const beforeChip = notes.length;
+  dd.querySelector('#spendChips .chip[data-v="120"]').click();
+  ok(notes.length > beforeChip, 'chip tap makes a sound');
+  ok(dd.getElementById('spendInsight').textContent.indexOf('3,120') > -1,
+     'the monthly-spend insight is on screen while we wait');
+  await wait(400);
+  ok(!!dd.getElementById('in_spend'), 'chips wait ~900ms so that insight actually lands');
+  await wait(800);
+  ok(!!dd.getElementById('in_time'), 'auto-advanced to step 6');
+
+  dd.querySelector('#timeChips .chip[data-v="30"]').click();
+  await wait(1200);
+  ok(!!dd.getElementById('feelOptions'), 'auto-advanced to step 7');
+
+  dd.querySelector('#feelOptions .option[data-feel="Relaxed"]').click();
+  await wait(600);
+  ok(!!dd.getElementById('interestOptions'), 'auto-advanced to step 8');
+
+  const beforeFinish = notes.length;
+  dd.querySelector('#interestOptions .option[data-interest="yes"]').click();
+  await wait(700);
+  ok(dd.querySelector('.confirm-title') !== null, 'auto-advanced to step 9 and submitted');
+  ok(notes.length - beforeFinish >= 3, 'arrival plays a 3-note flourish (' + (notes.length - beforeFinish) + ' notes)');
+  ok(Array.isArray(vibes[vibes.length - 1]), 'finish uses a vibration pattern, not a single buzz');
+
+  const done = bs.filter(b => b.action === 'submit' && b.status === 'complete').pop();
+  ok(!!done, 'the completed row still went out');
+  ok(done && done.travelMode === 'Bus' && done.dailySpend === 120 && done.oneWayMinutes === 30,
+     'every auto-advanced answer was captured');
+  ok(done && done.commuteFeeling === 'Relaxed' && done.sharedCabInterest === 'yes',
+     'feeling + interest captured');
+
+  ok(errs.length === 0, 'no uncaught errors' + (errs.length ? ' — ' + errs[0] : ''));
+
+  /* a returning visitor resuming straight onto step 9 must NOT get the
+     flourish: there is no user gesture there, so the browser would block
+     the audio anyway and the haptic would fire out of nowhere. */
+  const saved9 = {};
+  for (let i = 0; i < ww.localStorage.length; i++) {
+    const k = ww.localStorage.key(i); saved9[k] = ww.localStorage.getItem(k);
+  }
+  const vc2 = new VirtualConsole(); const errs2 = [];
+  vc2.on('jsdomError', e => errs2.push(String(e.message)));
+  const dom2 = new JSDOM(HTML, { url: 'https://picapool.test/', runScripts: 'outside-only', virtualConsole: vc2, pretendToBeVisual: true });
+  const w2 = dom2.window;
+  w2.Blob = function (parts) { this.text = parts.join(''); };
+  w2.navigator.sendBeacon = function () { return true; };
+  const notes2 = [], vibes2 = [];
+  w2.navigator.vibrate = p => { vibes2.push(p); return true; };
+  w2.AudioContext = function () {
+    this.currentTime = 0; this.state = 'running'; this.destination = {};
+    this.resume = () => Promise.resolve();
+    this.createOscillator = () => ({ type: '', frequency: { setValueAtTime: f => notes2.push(f) }, connect() {}, start() {}, stop() {} });
+    this.createGain = () => ({ gain: { setValueAtTime() {}, exponentialRampToValueAtTime() {} }, connect() {} });
+  };
+  for (const k in saved9) w2.localStorage.setItem(k, saved9[k]);
+  w2.eval(HTML.slice(HTML.indexOf('<script>') + 8, HTML.indexOf('</script>')));
+  ok(w2.document.querySelector('.confirm-title') !== null, 'resumed onto step 9');
+  ok(notes2.length === 0, 'no flourish on resume (' + notes2.length + ' notes played)');
+  ok(vibes2.length === 0, 'no haptic on resume');
+  ok(errs2.length === 0, 'no uncaught errors on resume');
+}
+
+/* ---------- 10. feedback never breaks a hostile webview ---------- */
+console.log('\n10. webview that refuses AudioContext and has no vibrate');
+{
+  const vc = new VirtualConsole(); const errs = [];
+  vc.on('jsdomError', e => errs.push(String(e.message)));
+  const dom = new JSDOM(HTML, { url: 'https://picapool.test/?new=1', runScripts: 'outside-only', virtualConsole: vc, pretendToBeVisual: true });
+  const ww = dom.window;
+  ww.Blob = function (parts) { this.text = parts.join(''); };
+  ww.navigator.sendBeacon = function () { return true; };
+  ww.AudioContext = function () { throw new Error('not allowed in this webview'); };
+  ww.webkitAudioContext = undefined;
+  delete ww.navigator.vibrate;
+  ww.eval(HTML.slice(HTML.indexOf('<script>') + 8, HTML.indexOf('</script>')));
+  const dd = ww.document;
+  dd.getElementById('p1cta').click();
+  ok(errs.length === 0, 'a refused AudioContext does not throw' + (errs.length ? ' — ' + errs[0] : ''));
+  ok(!!dd.getElementById('in_name'), 'form still navigates');
+  const t = (id, v) => { const e = dd.getElementById(id); e.value = v; e.dispatchEvent(new ww.Event('input', { bubbles: true })); };
+  t('in_name', 'A'); t('in_college', 'B'); t('in_phone', '9876543210');
+  dd.getElementById('p2next').click();
+  t('in_metro', 'AIIMS'); dd.getElementById('p3next').click();
+  dd.querySelector('#modeOptions .option[data-mode="Bus"]').click();
+  await wait(600);
+  ok(!!dd.getElementById('in_spend'), 'auto-advance still works with no audio at all');
+  ok(errs.length === 0, 'still no uncaught errors');
+}
+
 }
 main().then(() => {
   console.log(fail === 0 ? '\nALL CHECKS PASSED\n' : '\n' + fail + ' CHECK(S) FAILED\n');

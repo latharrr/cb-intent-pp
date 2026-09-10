@@ -11,7 +11,7 @@ is the database, Apps Script is the API, Vercel serves one static file.
 | `vercel.json` | Rewrites every path to `index.html`, so `/srcc` is a trackable slug with no server. |
 | `test/smoke.js` | Headless run of the whole page — walks all 9 steps and asserts every beacon. |
 
-Frontend `BUILD` is `2026-09-10-c`. Backend `CODE_VERSION` is `2026-09-10-a`.
+Frontend `BUILD` is `2026-09-10-d`. Backend `CODE_VERSION` is `2026-09-10-a`.
 
 ---
 
@@ -42,7 +42,7 @@ Partial then complete on the same `sessionId` produced **one** row, not two —
 the upsert is working. Health check any time by opening the `/exec` URL in a
 browser.
 
-The frontend is verified headlessly too — 57 checks, all passing:
+The frontend is verified headlessly too — 83 checks, all passing:
 
 ```bash
 npm i --no-save jsdom && node test/smoke.js
@@ -52,8 +52,10 @@ It boots the real `index.html`, walks all 9 steps, and asserts the payload
 of every beacon: slug/`?ref` capture, one stable session id, the partial →
 complete transition, resume-where-you-left-off, `?new=1` wiping the
 session, CTA injection and click stamping once a link is configured,
-`pagehide` forcing a flush, and the whole page still working in a webview
-with no `sendBeacon`, no `fetch` and no `localStorage`.
+`pagehide` forcing a flush, auto-advance timing on every screen that has
+it, the sound and haptic calls, and the whole page still working in a
+webview with no `sendBeacon`, no `fetch`, no `localStorage` and an
+`AudioContext` that refuses to construct.
 
 **Housekeeping:** that test left a `SELFTEST` row behind. Remove it with
 **PicaPool → Delete self-test row** in the Sheet menu before you read real
@@ -97,6 +99,59 @@ Then add the custom domain in the Vercel project settings and point DNS at it.
   `setupSheets()` (safe, additive only), then **Deploy → Manage deployments
   → pencil → Version: New version**. Pasting code alone does *not* change
   what `/exec` serves.
+
+---
+
+## Tap feel
+
+Every tap plays a short, quiet sine tick and a ~8ms haptic buzz; pressing
+Next plays a two-note rise, Back a lower note, and arriving on the
+confirmation screen a three-note flourish with a patterned buzz to go with
+the confetti. Two constants turn either half off:
+
+```js
+var ENABLE_SOUND   = true;
+var ENABLE_HAPTICS = true;
+```
+
+Both are wrapped in the playbook's 1.11 pattern — lazy construction inside
+a `try`, an "unavailable here" flag, every call site guarded — because
+in-app WhatsApp and Instagram webviews refuse to construct an
+`AudioContext`, and an uncaught error there would kill every line after it,
+tracking included. iOS has no Vibration API at all, so haptics are simply a
+no-op there rather than an error. The flourish deliberately does *not* play
+for someone resuming straight onto step 9: there is no user gesture on that
+load, so the browser would block the audio and the buzz would arrive out of
+nowhere.
+
+## Auto-advance
+
+On the screens where one tap *is* the whole answer, the form moves itself
+on — no Next press:
+
+| Screen | Trigger | Delay |
+|---|---|---|
+| 4 · travel mode | option tap | 320ms |
+| 7 · commute feeling | option tap | 320ms |
+| 8 · shared-cab interest | option tap | 380ms (then submits) |
+| 5 · daily spend | **chip** tap | 900ms |
+| 6 · travel time | **chip** tap | 900ms |
+
+The delay is what makes the selected state visible before the screen
+changes. Chips get 900ms on purpose: tapping one reveals the "₹120/day is
+₹3,120+ every month" insight, and moving on before that lands throws away
+the point of the screen. Typing a number by hand still needs Next — only a
+chip tap is treated as a final answer. Tapping a second option inside the
+delay cancels the first advance, and Next keeps working normally
+throughout.
+
+```js
+var AUTO_ADVANCE       = true;
+var AUTO_ADVANCE_CHIPS = true;  // false = chips select only, never advance
+```
+
+Advancing works by pressing the page's own Next button programmatically, so
+it reuses that button's existing validation rather than duplicating it.
 
 ---
 

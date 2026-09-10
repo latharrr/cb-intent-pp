@@ -1169,7 +1169,7 @@
   /* Which build of this file is live. Rides along on every submission as
      `clientBuild`, so the Sheet itself answers "did the redeploy happen".
      Bump on every meaningful change to this file. */
-  var BUILD = '2026-09-10-c';
+  var BUILD = '2026-09-10-d';
 
   /* ?debug=1 pins a readout to the screen: build, session id, and the
      result of every beacon as it fires. It is the ONLY way to see whether
@@ -1501,8 +1501,139 @@
     });
   }
 
+  /* ---- tap feedback: a small sound + a haptic tick ----
+     Guarded exactly the way PLAYBOOK.md 1.11 demands: lazy construction
+     inside a try, an "unavailable here" flag, and every call site wrapped.
+     In-app WhatsApp/Instagram webviews and locked-down Android WebViews
+     refuse to construct AudioContext, and an uncaught error at the top
+     level of this script kills every line after it — including all of the
+     tracking above. Nothing decorative may take down anything load-bearing. */
+  var ENABLE_SOUND   = true;
+  var ENABLE_HAPTICS = true;
+
+  var audioContext = null, audioUnavailable = false;
+  function audio(){
+    if (!ENABLE_SOUND || audioUnavailable) return null;
+    if (!audioContext){
+      try{
+        var Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx){ audioUnavailable = true; return null; }
+        audioContext = new Ctx();
+      }catch(e){ audioUnavailable = true; return null; }
+    }
+    // iOS starts every context suspended and only allows a resume inside a
+    // real user gesture — which is exactly where every call site here is.
+    if (audioContext.state === 'suspended'){ try{ audioContext.resume(); }catch(e){} }
+    return audioContext;
+  }
+  function withAudio(play){ var ctx = audio(); if (!ctx) return; try{ play(ctx); }catch(e){} }
+
+  /* one short sine with a fast decay — a soft "tick", never a buzz. Kept
+     quiet on purpose: this plays on every tap. */
+  function blip(freq, startAt, dur, peak){
+    withAudio(function(ctx){
+      var t = ctx.currentTime + (startAt || 0);
+      var d = dur || 0.09;
+      var osc = ctx.createOscillator();
+      var gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, t);
+      gain.gain.setValueAtTime(0.0001, t);
+      gain.gain.exponentialRampToValueAtTime(peak || 0.055, t + 0.012);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t + d);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(t); osc.stop(t + d + 0.02);
+    });
+  }
+  function buzz(pattern){
+    if (!ENABLE_HAPTICS) return;
+    // iOS Safari has no Vibration API at all, so this is a no-op there
+    // rather than an error.
+    try{ if (navigator.vibrate) navigator.vibrate(pattern); }catch(e){}
+  }
+
+  var SOUNDS = {
+    select:  function(){ blip(880, 0, 0.07, 0.05); buzz(8); },
+    advance: function(){ blip(660, 0, 0.07, 0.05); blip(988, 0.055, 0.09, 0.05); buzz(12); },
+    back:    function(){ blip(494, 0, 0.08, 0.04); buzz(8); },
+    finish:  function(){
+      blip(659, 0,    0.10, 0.05);
+      blip(880, 0.09, 0.10, 0.05);
+      blip(1319, 0.18, 0.24, 0.05);
+      buzz([12, 40, 12, 40, 20]);
+    }
+  };
+  function feedback(kind){ try{ (SOUNDS[kind] || SOUNDS.select)(); }catch(e){} }
+
+  /* One delegated listener in the capture phase, so a tap is heard even
+     when the handler under it immediately re-renders or navigates away.
+     Nothing existing had to be touched to wire this up. */
+  var autoClicking = false;
+  document.addEventListener('click', function(e){
+    if (autoClicking) return; // programmatic advance; its own sound already played
+    var t = (e.target && e.target.closest)
+      ? e.target.closest('.back-btn, .option, .chip, .btn, [data-track-cta]')
+      : null;
+    if (!t) return;
+    if (t.classList.contains('back-btn')) feedback('back');
+    else if (t.classList.contains('option') || t.classList.contains('chip')) feedback('select');
+    else if (t.id === 'p8next') return; // the finish flourish covers this one
+    else feedback('advance');
+  }, true);
+
+  /* ---- auto-advance: on the screens where one tap IS the whole answer ----
+     Advancing by pressing the page's own Next button reuses that button's
+     existing validation and state handling rather than duplicating it. */
+  var AUTO_ADVANCE       = true;
+  var AUTO_ADVANCE_CHIPS = true;
+  var AUTO_ADVANCE_MAP = [
+    { pick: '#modeOptions .option',     next: 'p4next', ms: 320 },
+    { pick: '#feelOptions .option',     next: 'p7next', ms: 320 },
+    { pick: '#interestOptions .option', next: 'p8next', ms: 380 },
+    // chips get longer: tapping one reveals the "₹120/day is ₹3,120+ every
+    // month" insight, and moving on before that lands wastes the whole point
+    // of the screen. Typing a number still needs Next, by design.
+    { pick: '#spendChips .chip',        next: 'p5next', ms: 900, chips: true },
+    { pick: '#timeChips .chip',         next: 'p6next', ms: 900, chips: true }
+  ];
+
+  var autoAdvanceTimer = null;
+  function bindAutoAdvance(){
+    if (!AUTO_ADVANCE) return;
+    AUTO_ADVANCE_MAP.forEach(function(rule){
+      if (rule.chips && !AUTO_ADVANCE_CHIPS) return;
+      document.querySelectorAll(rule.pick).forEach(function(el){
+        if (el.getAttribute('data-auto-bound')) return;
+        el.setAttribute('data-auto-bound','1');
+        // bound after the page's own pick handler, so the answer is already
+        // in state by the time this fires
+        var go = function(){
+          if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+          autoAdvanceTimer = setTimeout(function(){
+            var btn = document.getElementById(rule.next);
+            if (!btn) return;
+            autoClicking = true;
+            try{ btn.click(); }finally{ autoClicking = false; }
+          }, rule.ms);
+        };
+        el.addEventListener('click', go);
+        // the existing keyboard handler calls pick() directly rather than
+        // dispatching a click, so Enter/Space needs its own hook
+        el.addEventListener('keydown', function(ev){
+          if (ev.key === 'Enter' || ev.key === ' '){ feedback('select'); go(); }
+        });
+      });
+    });
+  }
+
+  /* leaving a screen mid-advance shouldn't fire the old screen's Next */
+  window.addEventListener('pagehide', function(){
+    if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+  });
+
   /* ---- wrap render(): one hook that catches the first paint AND every
      goto(), so no existing call site had to change ---- */
+  var lastRenderedStep = null;
   var __ppRender = render;
   render = function(){
     if (REDIRECTING) return; // page is on its way to a shortlink destination
@@ -1514,6 +1645,14 @@
       injectFinalCTAs();
     }
     bindCtas();
+    bindAutoAdvance();
+    /* the flourish belongs to *arriving* at the last screen, not to
+       re-rendering it, and not to a returning visitor who resumes straight
+       onto it (no user gesture there, so the browser would block it anyway) */
+    if (state.step === TOTAL_STEPS && lastRenderedStep !== null && lastRenderedStep !== TOTAL_STEPS){
+      feedback('finish');
+    }
+    lastRenderedStep = state.step;
     /* The final screen must not wait on the 700ms debounce. The existing
        submitAndShowPage9() calls persistSubmission() BEFORE goto(9), so at
        that point state.step is still 8 — this is the only place that sends
