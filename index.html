@@ -553,6 +553,33 @@
     10%{opacity:1;}
     100%{opacity:0; transform:translateY(340px) rotate(160deg);}
   }
+
+  /* multi-select variant: a square check that sits BEFORE the label, so the
+     box lands on the left edge of the row instead of the far right. The
+     round .dot above is left alone — pages 7 and 8 are still single-select. */
+  .option.multi{justify-content:flex-start;}
+  .option .box{
+    width:20px;height:20px;
+    border-radius:6px;
+    border:2px solid var(--border);
+    background:var(--white);
+    flex-shrink:0;
+    position:relative;
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .option .box::after{
+    content:'';
+    position:absolute;
+    left:5px; top:2px;
+    width:6px; height:11px;
+    border:solid #FFFFFF;
+    border-width:0 2.5px 2.5px 0;
+    transform:rotate(45deg) scale(0);
+    transform-origin:center;
+    transition:transform .15s ease;
+  }
+  .option.sel .box{border-color:var(--orange); background:var(--orange);}
+  .option.sel .box::after{transform:rotate(45deg) scale(1);}
 </style>
 
 <div class="stage">
@@ -574,7 +601,7 @@
     "Rithala","Rohini West","Rohini East","Pitampura","Kohat Enclave","Netaji Subhash Place",
     "Keshav Puram","Kanhaiya Nagar","Inderlok","Shastri Nagar","Tis Hazari","Pul Bangash",
     "Pratap Nagar","Shastri Park","Samaypur Badli","Rohini Sector 18-19","Haiderpur Badli Mor",
-    "Jahangirpuri","Adarsh Nagar","Azadpur","Model Town","GTB Nagar","Vishwavidyalaya",
+    "Jahangirpuri","Adarsh Nagar","Azadpur","Model Town",
     "Vidhan Sabha","Civil Lines","Kashmere Gate","Chandni Chowk","Chawri Bazar","New Delhi",
     "Rajiv Chowk","Patel Chowk","Central Secretariat","Shakurpur","Punjabi Bagh","ESI Hospital",
     "Rajouri Garden","Karol Bagh","Jhandewalan","Dwarka Sector 21","Majlis Park","Shalimar Bagh",
@@ -593,7 +620,7 @@
       phone_number:"",
       email_optional:"",
       nearest_metro_station:"",
-      travel_mode:"",
+      travel_modes:[],
       daily_travel_spend:"",
       daily_one_way_travel_time:"",
       commute_feeling:"",
@@ -834,25 +861,28 @@
   }
 
   /* ---------- PAGE 4: travel mode ---------- */
-  var TRAVEL_MODES = ["Metro + walking","Metro + auto/Rapido","Bus","Personal vehicle","Cab/auto","Other"];
+  var TRAVEL_MODES = ["Walking","Metro","Rapid (Rapido)","Personal vehicle","Auto/Cab","Other"];
   var TRAVEL_MODE_ICONS = {
-    "Metro + walking":"🚶",
-    "Metro + auto/Rapido":"🚇",
-    "Bus":"🚌",
-    "Personal vehicle":"🛵",
-    "Cab/auto":"🚕",
+    "Walking":"🚶",
+    "Metro":"🚇",
+    "Rapid (Rapido)":"🏍️",
+    "Personal vehicle":"🚗",
+    "Auto/Cab":"🚕",
     "Other":"✦"
   };
   function renderPage4(){
+    var picked = state.data.travel_modes || [];
     var optsHtml = TRAVEL_MODES.map(function(m){
-      var sel = state.data.travel_mode === m ? " sel" : "";
-      return '<div class="option'+sel+'" role="radio" aria-checked="'+(sel?"true":"false")+'" tabindex="0" data-mode="'+esc(m)+'">'+
-        '<span class="label"><span class="oicon">'+TRAVEL_MODE_ICONS[m]+'</span><span>'+esc(m)+'</span></span><span class="dot"></span></div>';
+      var sel = picked.indexOf(m) > -1 ? " sel" : "";
+      return '<div class="option multi'+sel+'" role="checkbox" aria-checked="'+(sel?"true":"false")+'" tabindex="0" data-mode="'+esc(m)+'">'+
+        '<span class="box"></span>'+
+        '<span class="label"><span class="oicon">'+TRAVEL_MODE_ICONS[m]+'</span><span>'+esc(m)+'</span></span></div>';
     }).join("");
     screenEl.innerHTML =
       backBtn()+
-      '<h2 class="question">How do you usually get to college?</h2>'+
-      '<div class="options" role="radiogroup" id="modeOptions" style="margin-top:14px;">'+optsHtml+'</div>'+
+      '<h2 class="question">What all do you take to get to college?</h2>'+
+      '<p class="helper">Select all modes you use in your commute journey.</p>'+
+      '<div class="options" role="group" aria-label="Travel modes" id="modeOptions" style="margin-top:14px;">'+optsHtml+'</div>'+
       '<div class="spacer"></div>'+
       insightHTML('Long, crowded metro commutes can contribute to chronic neck, back and shoulder strain over time.')+
       '<div class="cta-area"><button type="button" class="btn" id="p4next">Next →</button></div>'+
@@ -860,19 +890,25 @@
 
     document.getElementById("backBtn").addEventListener("click", function(){ goto(3); });
     document.querySelectorAll("#modeOptions .option").forEach(function(el){
-      var pick = function(){
-        state.data.travel_mode = el.getAttribute("data-mode");
-        document.querySelectorAll("#modeOptions .option").forEach(function(o){
-          o.classList.remove("sel"); o.setAttribute("aria-checked","false");
-        });
-        el.classList.add("sel"); el.setAttribute("aria-checked","true");
+      var toggle = function(){
+        var m = el.getAttribute("data-mode");
+        if (!state.data.travel_modes) state.data.travel_modes = [];
+        var list = state.data.travel_modes;
+        var i = list.indexOf(m);
+        if (i > -1) list.splice(i, 1); else list.push(m);
+        // keep the stored order canonical, not tap order, so the Sheet cell
+        // reads the same for everyone who picked the same set
+        list.sort(function(a,b){ return TRAVEL_MODES.indexOf(a) - TRAVEL_MODES.indexOf(b); });
+        var on = list.indexOf(m) > -1;
+        el.classList.toggle("sel", on);
+        el.setAttribute("aria-checked", on ? "true" : "false");
       };
-      el.addEventListener("click", pick);
-      el.addEventListener("keydown", function(e){ if (e.key==="Enter"||e.key===" "){ e.preventDefault(); pick(); } });
+      el.addEventListener("click", toggle);
+      el.addEventListener("keydown", function(e){ if (e.key==="Enter"||e.key===" "){ e.preventDefault(); toggle(); } });
     });
     document.getElementById("p4next").addEventListener("click", function(){
-      if (!state.data.travel_mode){
-        alertInline("modeOptions","Please choose an option to continue.");
+      if (!state.data.travel_modes || !state.data.travel_modes.length){
+        alertInline("modeOptions","Please select at least one option to continue.");
         return;
       }
       goto(5);
@@ -939,7 +975,7 @@
   }
 
   /* ---------- PAGE 6: travel time ---------- */
-  var TIME_CHIPS = [20,30,45,60,90,120];
+  var TIME_CHIPS = [30,60,90,120,150,180];
   function renderPage6(){
     screenEl.innerHTML =
       backBtn()+
@@ -1102,7 +1138,7 @@
         '<div class="panel-divider"></div>'+
         '<div class="commute-route">'+esc(d.nearest_metro_station)+' → College</div>'+
         '<div class="commute-tags">'+
-          '<span class="commute-tag">'+esc(d.travel_mode)+'</span>'+
+          (d.travel_modes || []).map(function(m){ return '<span class="commute-tag">'+esc(m)+'</span>'; }).join("")+
           '<span class="commute-tag">'+esc(d.daily_one_way_travel_time)+' min/day</span>'+
           '<span class="commute-tag">₹'+esc(d.daily_travel_spend)+'/day</span>'+
         '</div>'+
@@ -1169,7 +1205,7 @@
   /* Which build of this file is live. Rides along on every submission as
      `clientBuild`, so the Sheet itself answers "did the redeploy happen".
      Bump on every meaningful change to this file. */
-  var BUILD = '2026-09-10-d';
+  var BUILD = '2026-09-10-e';
 
   /* ?debug=1 pins a readout to the screen: build, session id, and the
      result of every beacon as it fires. It is the ONLY way to see whether
@@ -1369,7 +1405,14 @@
       slug: entrySlug, referredBy: incomingRef, myRefCode: state.myRefCode || '',
       fullName: d.full_name || '', college: d.college || '',
       phone: d.phone_number || '', email: d.email_optional || '',
-      metroStation: d.nearest_metro_station || '', travelMode: d.travel_mode || '',
+      metroStation: d.nearest_metro_station || '',
+      /* travelMode is the readable summary for the Submissions cell;
+         travelModesJSON is the lossless blob the backend explodes into the
+         TravelModes tab. Renaming an option in TRAVEL_MODES above means
+         updating explodeModes() in apps-script/Code.gs to match. */
+      travelMode: (d.travel_modes || []).join(', '),
+      travelModesJSON: JSON.stringify(d.travel_modes || []),
+      travelModeCount: (d.travel_modes || []).length,
       dailySpend: d.daily_travel_spend || '', oneWayMinutes: d.daily_one_way_travel_time || '',
       commuteFeeling: d.commute_feeling || '', sharedCabInterest: d.shared_cab_interest || '',
       currentScreen: currentId(), screensReached: state.maxStep, totalScreens: TOTAL_STEPS,
@@ -1587,7 +1630,8 @@
   var AUTO_ADVANCE       = true;
   var AUTO_ADVANCE_CHIPS = true;
   var AUTO_ADVANCE_MAP = [
-    { pick: '#modeOptions .option',     next: 'p4next', ms: 320 },
+    // page 4 is deliberately absent: it is multi-select now, so advancing on
+    // the first tap would make it impossible to pick a second mode
     { pick: '#feelOptions .option',     next: 'p7next', ms: 320 },
     { pick: '#interestOptions .option', next: 'p8next', ms: 380 },
     // chips get longer: tapping one reveals the "₹120/day is ₹3,120+ every

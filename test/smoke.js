@@ -63,10 +63,12 @@ type('in_name', 'Ananya Sharma'); type('in_college', 'SRCC'); type('in_phone', '
 type('in_email', 'ananya@example.com');
 click('p2next');
 ok(!!d.getElementById('in_metro'), 'reached step 3');
-type('in_metro', 'Vishwavidyalaya'); click('p3next');
-d.querySelector('#modeOptions .option[data-mode="Metro + auto/Rapido"]').click(); click('p4next');
+type('in_metro', 'Rajiv Chowk'); click('p3next');
+d.querySelector('#modeOptions .option[data-mode="Walking"]').click();
+d.querySelector('#modeOptions .option[data-mode="Metro"]').click();
+click('p4next');
 type('in_spend', '120'); click('p5next');
-type('in_time', '75'); click('p6next');
+type('in_time', '150'); click('p6next');
 d.querySelector('#feelOptions .option[data-feel="Draining"]').click(); click('p7next');
 d.querySelector('#interestOptions .option[data-interest="yes"]').click(); click('p8next');
 
@@ -79,9 +81,11 @@ ok(!!done, 'complete submission fired');
 ok(done && done.currentScreen === 'step9' && done.screensReached === 9, 'step9 / screensReached 9');
 ok(done && done.fullName === 'Ananya Sharma' && done.phone === '9876543210', 'identity fields mapped');
 ok(done && done.college === 'SRCC' && done.email === 'ananya@example.com', 'college + email mapped');
-ok(done && done.metroStation === 'Vishwavidyalaya', 'metroStation mapped');
-ok(done && done.travelMode === 'Metro + auto/Rapido', 'travelMode mapped');
-ok(done && done.dailySpend === 120 && done.oneWayMinutes === 75, 'spend/time mapped as numbers');
+ok(done && done.metroStation === 'Rajiv Chowk', 'metroStation mapped');
+ok(done && done.travelMode === 'Walking, Metro', 'travelMode summary cell: ' + (done && done.travelMode));
+ok(done && done.travelModesJSON === '["Walking","Metro"]', 'lossless blob for the detail tab: ' + (done && done.travelModesJSON));
+ok(done && done.travelModeCount === 2, 'travelModeCount = 2');
+ok(done && done.dailySpend === 120 && done.oneWayMinutes === 150, 'spend/time mapped as numbers');
 ok(done && done.commuteFeeling === 'Draining' && done.sharedCabInterest === 'yes', 'feeling + interest mapped');
 ok(done && /^[A-Z2-9]{6}$/.test(done.myRefCode), 'referral code generated: ' + (done && done.myRefCode));
 ok(beacons.some(b => b.action === 'createLink' && b.type === 'referral'), 'createLink logged for the referral code');
@@ -107,6 +111,7 @@ const rs = r2.beacons.find(b => b.action === 'submit');
 ok(rs && rs.sessionId === done.sessionId, 'same sessionId reused, so the backend upserts');
 ok(rs && rs.status === 'complete', 'resumed row stays complete');
 ok(rs && rs.fullName === 'Ananya Sharma', 'answers restored from localStorage');
+ok(rs && rs.travelModesJSON === '["Walking","Metro"]', 'the multi-select array survives a reload');
 
 /* ---------- 4. ?new=1 wipes ---------- */
 console.log('\n4. ?new=1 starts a genuinely fresh session');
@@ -147,7 +152,7 @@ ok(patched !== HTML, 'config constant is patchable');
   const t2 = (id, v) => { const e = dd.getElementById(id); e.value = v; e.dispatchEvent(new ww.Event('input', { bubbles: true })); };
   t2('in_name', 'B'); t2('in_college', 'C'); t2('in_phone', '9876543210'); dd.getElementById('p2next').click();
   t2('in_metro', 'AIIMS'); dd.getElementById('p3next').click();
-  dd.querySelector('#modeOptions .option[data-mode="Bus"]').click(); dd.getElementById('p4next').click();
+  dd.querySelector('#modeOptions .option[data-mode="Auto/Cab"]').click(); dd.getElementById('p4next').click();
   t2('in_spend', '60'); dd.getElementById('p5next').click();
   t2('in_time', '30'); dd.getElementById('p6next').click();
   dd.querySelector('#feelOptions .option[data-feel="Relaxed"]').click(); dd.getElementById('p7next').click();
@@ -238,13 +243,19 @@ console.log('\n9. sound, vibration, and auto-advance');
   t('in_name', 'A'); t('in_college', 'B'); t('in_phone', '9876543210');
   dd.getElementById('p2next').click();
   t('in_metro', 'AIIMS'); dd.getElementById('p3next').click();
-  ok(!!dd.getElementById('modeOptions'), 'on step 4 (travel mode)');
+  ok(!!dd.getElementById('modeOptions'), 'on step 4 (travel modes, multi-select)');
+
+  /* page 4 is the one screen that must NOT auto-advance: advancing on the
+     first tap would make a second mode impossible to pick. */
+  dd.querySelector('#modeOptions .option[data-mode="Walking"]').click();
+  await wait(700);
+  ok(!!dd.getElementById('modeOptions'), 'multi-select does NOT auto-advance');
+  dd.querySelector('#modeOptions .option[data-mode="Metro"]').click();
+  ok(dd.querySelectorAll('#modeOptions .option.sel').length === 2, 'both taps stay selected');
+  dd.getElementById('p4next').click();
+  ok(!!dd.getElementById('in_spend'), 'Next moves on once modes are picked');
 
   // ---- from here on, NOTHING presses Next ----
-  dd.querySelector('#modeOptions .option[data-mode="Bus"]').click();
-  ok(!!dd.getElementById('modeOptions'), 'still on step 4 right after the tap (selection is visible first)');
-  await wait(600);
-  ok(!!dd.getElementById('in_spend'), 'auto-advanced to step 5 with no Next press');
 
   const beforeChip = notes.length;
   dd.querySelector('#spendChips .chip[data-v="120"]').click();
@@ -273,7 +284,7 @@ console.log('\n9. sound, vibration, and auto-advance');
 
   const done = bs.filter(b => b.action === 'submit' && b.status === 'complete').pop();
   ok(!!done, 'the completed row still went out');
-  ok(done && done.travelMode === 'Bus' && done.dailySpend === 120 && done.oneWayMinutes === 30,
+  ok(done && done.travelMode === 'Walking, Metro' && done.dailySpend === 120 && done.oneWayMinutes === 30,
      'every auto-advanced answer was captured');
   ok(done && done.commuteFeeling === 'Relaxed' && done.sharedCabInterest === 'yes',
      'feeling + interest captured');
@@ -330,10 +341,106 @@ console.log('\n10. webview that refuses AudioContext and has no vibrate');
   t('in_name', 'A'); t('in_college', 'B'); t('in_phone', '9876543210');
   dd.getElementById('p2next').click();
   t('in_metro', 'AIIMS'); dd.getElementById('p3next').click();
-  dd.querySelector('#modeOptions .option[data-mode="Bus"]').click();
-  await wait(600);
-  ok(!!dd.getElementById('in_spend'), 'auto-advance still works with no audio at all');
+  dd.querySelector('#modeOptions .option[data-mode="Walking"]').click();
+  dd.getElementById('p4next').click();
+  dd.querySelector('#spendChips .chip[data-v="60"]').click();
+  await wait(1100);
+  ok(!!dd.getElementById('in_time'), 'auto-advance still works with no audio at all');
   ok(errs.length === 0, 'still no uncaught errors');
+}
+
+
+/* ---------- 11. the MSDF-HRC-024 refinement spec, item by item ---------- */
+console.log('\n11. refinement spec compliance (MSDF-HRC-024, pages 1-5)');
+{
+  const vc = new VirtualConsole(); const errs = [];
+  vc.on('jsdomError', e => errs.push(String(e.message)));
+  const dom = new JSDOM(HTML, { url: 'https://picapool.test/?new=1', runScripts: 'outside-only', virtualConsole: vc, pretendToBeVisual: true });
+  const ww = dom.window;
+  ww.Blob = function (parts) { this.text = parts.join(''); };
+  const bs = [];
+  ww.navigator.sendBeacon = function (u, b) { bs.push(JSON.parse(b.text)); return true; };
+  ww.eval(HTML.slice(HTML.indexOf('<script>') + 8, HTML.indexOf('</script>')));
+  const dd = ww.document;
+  const t = (id, v) => { const e = dd.getElementById(id); e.value = v; e.dispatchEvent(new ww.Event('input', { bubbles: true })); };
+
+  dd.getElementById('p1cta').click();
+  t('in_name', 'Spec Check'); t('in_college', 'SRCC'); t('in_phone', '9876543210');
+  dd.getElementById('p2next').click();
+
+  // --- Page 3: remove GTB Nagar and Vishwavidyalaya, keep the rest
+  const stations = [...dd.querySelectorAll('#metroList option')].map(o => o.value);
+  ok(stations.indexOf('GTB Nagar') === -1, 'page 3: GTB Nagar removed');
+  ok(stations.indexOf('Vishwavidyalaya') === -1, 'page 3: Vishwavidyalaya removed');
+  ok(stations.indexOf('Rajiv Chowk') > -1 && stations.indexOf('Azadpur') > -1,
+     'page 3: other stations kept (' + stations.length + ' left)');
+
+  t('in_metro', 'Azadpur'); dd.getElementById('p3next').click();
+
+  // --- Page 4: copy, multi-select, order, checkbox on the left
+  ok(dd.querySelector('.question').textContent === 'What all do you take to get to college?',
+     'page 4: question copy — "' + dd.querySelector('.question').textContent + '"');
+  ok((dd.querySelector('.helper') || {}).textContent === 'Select all modes you use in your commute journey.',
+     'page 4: instructional subheading added');
+  const opts = [...dd.querySelectorAll('#modeOptions .option')];
+  ok(opts.map(o => o.getAttribute('data-mode')).join('|') ===
+     'Walking|Metro|Rapid (Rapido)|Personal vehicle|Auto/Cab|Other',
+     'page 4: options in spec order — ' + opts.map(o => o.getAttribute('data-mode')).join(', '));
+  ok(opts.every(o => o.getAttribute('role') === 'checkbox'),
+     'page 4: role=checkbox, not radio');
+  ok(opts.every(o => o.firstElementChild && o.firstElementChild.classList.contains('box')),
+     'page 4: the check box is the FIRST child, so it renders on the left');
+  ok(opts.every(o => !o.querySelector('.dot')),
+     'page 4: no round radio dot left behind');
+  ok(dd.getElementById('modeOptions').getAttribute('role') === 'group',
+     'page 4: container is a group, not a radiogroup');
+
+  // multi-select really is multi
+  opts[0].click(); opts[1].click(); opts[4].click();
+  ok(dd.querySelectorAll('#modeOptions .option.sel').length === 3, 'page 4: three modes selected at once');
+  opts[1].click();
+  ok(dd.querySelectorAll('#modeOptions .option.sel').length === 2, 'page 4: tapping again deselects');
+  ok(opts[0].getAttribute('aria-checked') === 'true' && opts[1].getAttribute('aria-checked') === 'false',
+     'page 4: aria-checked tracks each box independently');
+
+  // validation: an empty selection must not advance
+  opts[0].click(); opts[4].click();
+  ok(dd.querySelectorAll('#modeOptions .option.sel').length === 0, 'page 4: cleared the selection');
+  dd.getElementById('p4next').click();
+  ok(!!dd.getElementById('modeOptions'), 'page 4: Next is blocked while nothing is selected');
+  ok(!!dd.querySelector('.inline-alert'), 'page 4: inline "select at least one" alert shown');
+
+  opts[4].click(); opts[0].click(); // Auto/Cab then Walking — deliberately out of order
+  dd.getElementById('p4next').click();
+  ok(!!dd.getElementById('in_spend'), 'page 4: advances once something is picked');
+
+  t('in_spend', '150'); dd.getElementById('p5next').click();
+
+  // --- Page 5/6: time chips now run 30 to 180 in 30-minute steps
+  const chips = [...dd.querySelectorAll('#timeChips .chip')].map(c => Number(c.getAttribute('data-v')));
+  ok(chips.join(',') === '30,60,90,120,150,180', 'time chips are 30-180 in 30s — ' + chips.join(', '));
+  ok(Math.max(...chips) === 180, 'max option is 3 hours (180 minutes)');
+
+  t('in_time', '180'); dd.getElementById('p6next').click();
+  dd.querySelector('#feelOptions .option[data-feel="Draining"]').click();
+  dd.getElementById('p7next').click();
+  dd.querySelector('#interestOptions .option[data-interest="yes"]').click();
+  dd.getElementById('p8next').click();
+
+  // --- Page 9 has to survive several modes
+  ok(dd.querySelector('.confirm-title') !== null, 'reached the confirmation screen');
+  const tags = [...dd.querySelectorAll('.commute-tag')].map(x => x.textContent);
+  ok(tags.indexOf('Walking') > -1 && tags.indexOf('Auto/Cab') > -1,
+     'page 9: one tag per selected mode — ' + tags.join(' / '));
+  ok(tags.indexOf('undefined') === -1, 'page 9: no "undefined" tag from the old single-value field');
+
+  const done = bs.filter(b => b.action === 'submit' && b.status === 'complete').pop();
+  ok(done && done.travelMode === 'Walking, Auto/Cab',
+     'summary cell is in canonical option order, not tap order — "' + (done && done.travelMode) + '"');
+  ok(done && done.travelModesJSON === '["Walking","Auto/Cab"]', 'blob matches');
+  ok(done && done.travelModeCount === 2, 'count matches');
+  ok(done && done.oneWayMinutes === 180, '180-minute answer accepted');
+  ok(errs.length === 0, 'no uncaught errors' + (errs.length ? ' — ' + errs[0] : ''));
 }
 
 }

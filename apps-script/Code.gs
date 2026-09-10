@@ -9,12 +9,13 @@
  * this against the file you pasted — if they differ, the live backend is
  * not the code you're reading and nothing you change is having any effect.
  */
-const CODE_VERSION = '2026-09-10-a';
+const CODE_VERSION = '2026-09-10-b';
 
 const SUBMISSIONS_SHEET = 'Submissions';
 const SLUG_SHEET = 'Slug';
 const DASHBOARD_SHEET = 'Dashboard';
 const ERROR_SHEET = 'Errors';
+const TRAVELMODES_SHEET = 'TravelModes';
 
 /* NEVER reorder or insert into this list — handleSubmit writes a row
    positionally from column 1, and getSheet() only ever APPENDS newly-added
@@ -27,7 +28,10 @@ const SUBMISSION_HEADERS = [
   'dailySpend', 'oneWayMinutes', 'commuteFeeling', 'sharedCabInterest',
   'currentScreen', 'screensReached', 'totalScreens', 'device', 'userAgent', 'eventsJSON',
   'groupClickedAt', 'appDownloadClickedAt', 'referralShareClickedAt',
-  'clientBuild'
+  'clientBuild',
+  // appended when page 4 became multi-select. travelMode (col M) keeps the
+  // readable summary; these two are the lossless blob and the count.
+  'travelModesJSON', 'travelModeCount'
 ];
 const S_SESSION = 1, S_FIRSTSEEN = 2, S_LASTUPDATED = 3, S_STATUS = 4, S_SLUG = 5;
 
@@ -40,12 +44,20 @@ const L_SLUG = 1, L_TYPE = 2, L_DEST = 3, L_FIRSTSEEN = 4, L_LASTSEEN = 5,
 
 const ERROR_HEADERS = ['at', 'action', 'sessionId', 'message', 'payload'];
 
-/* Step 0 found NO repeatable/multi-select field on this page — every answer
-   is a single value — so the playbook's 2.3 long-format detail tab does not
-   apply here and there is nothing derived to keep fresh on a trigger. The
-   Dashboard is pure formulas, so it is always live. If a multi-select ever
-   lands on the form (e.g. "which routes work for you"), add the detail tab
-   then, with a rebuild + backfill + on-completion refresh. */
+/* Page 4 is multi-select, so ONE person can hold several travel modes.
+   Cramming that into a single Submissions cell is unqueryable, so per
+   PLAYBOOK.md 2.3 it is also exploded into a long-format TravelModes tab:
+   one row per (person, mode). That tab is DERIVED — Submissions is the
+   source of truth and it is wiped and rebuilt wholesale, never hand-edited.
+   It refreshes on an hourly trigger AND opportunistically right after a
+   completion (throttled), because a trigger-only refresh leaves anyone who
+   hasn't re-run setup looking at a silently stale tab. */
+const TRAVELMODES_HEADERS = [
+  'sessionId', 'lastUpdated', 'status', 'fullName', 'college', 'phone',
+  'metroStation', 'mode', 'source'
+];
+// mode is column H, which is what the Dashboard breakdown counts against
+const REBUILD_THROTTLE_MS = 60 * 1000;
 
 /* ------------------------------------------------------------------ */
 /* API                                                                 */
@@ -212,7 +224,9 @@ function handleSubmit(body) {
     String(body.eventsJSON || '').slice(0, 40000),
     epochToDate(body.groupClickedAt), epochToDate(body.appDownloadClickedAt),
     epochToDate(body.referralShareClickedAt),
-    body.clientBuild || '(pre-build-stamp)'
+    body.clientBuild || '(pre-build-stamp)',
+    String(body.travelModesJSON || ''),
+    body.travelModeCount === '' || body.travelModeCount == null ? '' : Number(body.travelModeCount)
   ];
 
   const wasComplete = row > 0 && sh.getRange(row, S_STATUS).getValue() === 'complete';
@@ -223,7 +237,96 @@ function handleSubmit(body) {
     ensureGrid(sh, sh.getLastRow() + 1, rowData.length);
     sh.appendRow(rowData);
   }
-  if (body.status === 'complete' && !wasComplete) bumpSlugCounter(body.slug, L_COMPLETIONS);
+  if (body.status === 'complete' && !wasComplete) {
+    bumpSlugCounter(body.slug, L_COMPLETIONS);
+    maybeRebuildTravelModes();
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* TravelModes — the derived long-format tab (PLAYBOOK 2.3)            */
+/* ------------------------------------------------------------------ */
+
+/* The JS twin of this lives in index.html's buildSubmissionPayload():
+   state.data.travel_modes (an array of TRAVEL_MODES labels) becomes
+   travelModesJSON. Rename an option there and this must follow, or the two
+   quietly desync and the tab starts reporting labels the form no longer
+   uses. */
+function explodeModes(row, c) {
+  const out = [];
+  const raw = c.travelModesJSON ? String(row[c.travelModesJSON - 1] || '') : '';
+  if (raw) {
+    try {
+      const arr = JSON.parse(raw);
+      if (Array.isArray(arr)) {
+        arr.forEach(m => { if (m) out.push({ mode: String(m), source: 'preset' }); });
+        return out;
+      }
+    } catch (err) { /* fall through and recover from the legacy column */ }
+  }
+  // Rows captured before page 4 went multi-select only carry the single
+  // travelMode string. Recover them from that rather than dropping them —
+  // this is the backfill path, and it is why no separate migration is needed.
+  const legacy = c.travelMode ? String(row[c.travelMode - 1] || '') : '';
+  if (legacy) {
+    legacy.split(',').forEach(m => {
+      const v = m.trim();
+      if (v) out.push({ mode: v, source: 'legacy-single' });
+    });
+  }
+  return out;
+}
+
+function rebuildTravelModes() {
+  const sub = getSheet(SUBMISSIONS_SHEET, SUBMISSION_HEADERS);
+  const sh = getSheet(TRAVELMODES_SHEET, TRAVELMODES_HEADERS);
+  if (sh.getLastRow() > 1) {
+    sh.getRange(2, 1, sh.getLastRow() - 1, sh.getMaxColumns()).clearContent();
+  }
+  if (sub.getLastRow() < 2) return { rows: 0, legacy: 0 };
+  const c = colMap(sub);
+  const rows = sub.getRange(2, 1, sub.getLastRow() - 1, sub.getLastColumn()).getValues();
+  const out = [];
+  let legacy = 0;
+  rows.forEach(r => {
+    explodeModes(r, c).forEach(m => {
+      if (m.source === 'legacy-single') legacy++;
+      out.push([
+        r[c.sessionId - 1], r[c.lastUpdated - 1], r[c.status - 1],
+        r[c.fullName - 1], r[c.college - 1], r[c.phone - 1],
+        r[c.metroStation - 1], m.mode, m.source
+      ]);
+    });
+  });
+  if (out.length) {
+    ensureGrid(sh, out.length + 1, TRAVELMODES_HEADERS.length);
+    sh.getRange(2, 1, out.length, TRAVELMODES_HEADERS.length).setValues(out);
+  }
+  return { rows: out.length, legacy: legacy };
+}
+
+/* Rebuilding on every single completion would burn quota, so it is
+   throttled — and wrapped, because a derived tab must never be able to
+   break the submission that triggered it. */
+function maybeRebuildTravelModes() {
+  try {
+    const props = PropertiesService.getScriptProperties();
+    const last = Number(props.getProperty('lastModesRebuild') || 0);
+    const now = Date.now();
+    if (now - last < REBUILD_THROTTLE_MS) return;
+    props.setProperty('lastModesRebuild', String(now));
+    rebuildTravelModes();
+  } catch (err) { /* deliberately swallowed */ }
+}
+
+/* Menu-facing: same rebuild, but it reports how many rows it recovered from
+   the pre-multi-select single-value column. */
+function backfillTravelModes() {
+  const res = rebuildTravelModes();
+  const msg = res.rows + ' rows rebuilt, of which ' + res.legacy +
+    ' were recovered from the old single-value travelMode column.';
+  try { SpreadsheetApp.getUi().alert('TravelModes rebuilt', msg, SpreadsheetApp.getUi().ButtonSet.OK); } catch (e) {}
+  return msg;
 }
 
 function handleTrack(body) {
@@ -288,13 +391,17 @@ function applyConditionalFormatting() {
    M travelMode N dailySpend O oneWayMinutes P commuteFeeling
    Q sharedCabInterest  R currentScreen  S screensReached  T totalScreens
    U device     V userAgent  W eventsJSON  X groupClickedAt
-   Y appDownloadClickedAt    Z referralShareClickedAt      AA clientBuild */
+   Y appDownloadClickedAt    Z referralShareClickedAt      AA clientBuild
+   AB travelModesJSON        AC travelModeCount
+   M (travelMode) now holds a comma-joined summary like "Walking, Metro",
+   which is why the per-mode breakdown counts against the TravelModes tab
+   instead of matching M exactly. */
 const SUB = 'Submissions!';
 const STEP_LABELS = [
   'Intro / pitch', 'Your details', 'Metro station', 'Travel mode', 'Daily spend',
   'Travel time', 'Commute feeling', 'Shared-cab pitch', 'Confirmation'
 ];
-const TRAVEL_MODES = ['Metro + walking', 'Metro + auto/Rapido', 'Bus', 'Personal vehicle', 'Cab/auto', 'Other'];
+const TRAVEL_MODES = ['Walking', 'Metro', 'Rapid (Rapido)', 'Personal vehicle', 'Auto/Cab', 'Other'];
 const FEELINGS = ['Relaxed', 'Manageable', 'Tired out', 'Draining'];
 
 function buildDashboard() {
@@ -407,7 +514,13 @@ function buildDashboard() {
   kpiRow([
     ['Colleges reached', 'COUNTUNIQUE(' + SUB + '$I$2:$I)', '0'],
     ['Metro stations reached', 'COUNTUNIQUE(' + SUB + '$L$2:$L)', '0'],
-    ['Link visits (all slugs)', 'IFERROR(SUM(Slug!$F$2:$F),0)', '0']
+    ['Modes per commute (avg)', 'IFERROR(AVERAGEIF(' + SUB + '$AC$2:$AC,">0"),0)', '0.0', ACCENT]
+  ]);
+  blank();
+  kpiRow([
+    ['Link visits (all slugs)', 'IFERROR(SUM(Slug!$F$2:$F),0)', '0'],
+    ['Multi-mode commuters', 'COUNTIF(' + SUB + '$AC$2:$AC,">1")', '0'],
+    ['Single-mode commuters', 'COUNTIF(' + SUB + '$AC$2:$AC,"=1")', '0']
   ]);
   blank(16);
 
@@ -436,10 +549,17 @@ function buildDashboard() {
   });
   blank(16);
 
-  section('HOW THEY GET TO COLLEGE TODAY');
+  section('WHAT THEY TAKE TO COLLEGE (multi-select — picks overlap)');
+  note('Counted off the TravelModes tab, one row per person per mode, so these add up to more than the number of people.');
   TRAVEL_MODES.forEach(m => {
-    barRow(m, 'COUNTIF(' + SUB + '$M$2:$M,"' + m + '")', started, INK, '0');
+    barRow(m, 'COUNTIF(TravelModes!$H$2:$H,"' + m + '")', started, INK, '0');
   });
+  blank();
+  section('MOST COMMON MODE COMBINATIONS');
+  tableHeader(['Modes used together', 'People', 'Avg spend/day']);
+  tableBody('=IFERROR(QUERY(QUERY(' + SUB + 'A2:AC,' +
+    '"select M, count(A), avg(N) where M is not null and M != \'\' group by M order by count(A) desc limit 12",0),' +
+    '"select * offset 1",0), "No data yet")', 12, 3);
   blank(16);
 
   section('HOW THE COMMUTE FEELS');
@@ -486,7 +606,7 @@ function buildDashboard() {
   section('TOP COLLEGES');
   tableHeader(['College', 'Sessions', 'Completed all 9']);
   const collegeAnchor = r;
-  tableBody('=IFERROR(QUERY(QUERY(' + SUB + 'A2:AA,' +
+  tableBody('=IFERROR(QUERY(QUERY(' + SUB + 'A2:AC,' +
     '"select I, count(A) where I is not null and I != \'\' group by I order by count(A) desc limit 12",0),' +
     '"select * offset 1",0), "No data yet")', 12, 3);
   // the QUERY language used by Sheets has no conditional aggregate, so the
@@ -500,7 +620,7 @@ function buildDashboard() {
 
   section('TOP HOME METRO STATIONS');
   tableHeader(['Nearest metro station', 'Sessions', 'Avg spend/day']);
-  tableBody('=IFERROR(QUERY(QUERY(' + SUB + 'A2:AA,' +
+  tableBody('=IFERROR(QUERY(QUERY(' + SUB + 'A2:AC,' +
     '"select L, count(A), avg(N) where L is not null and L != \'\' group by L order by count(A) desc limit 12",0),' +
     '"select * offset 1",0), "No data yet")', 12, 3);
   blank(16);
@@ -508,21 +628,21 @@ function buildDashboard() {
   /* ---- people ---- */
   section('RECENT COMPLETIONS — ready to contact');
   tableHeader(['Name', 'College', 'Phone', 'From (metro)', '₹/day', 'Interested', 'Finished at']);
-  tableBody('=IFERROR(QUERY(' + SUB + 'A2:AA,' +
+  tableBody('=IFERROR(QUERY(' + SUB + 'A2:AC,' +
     '"select H, I, J, L, N, Q, C where D = \'complete\' order by C desc limit 20",0), "No completions yet")',
     20, 7);
   blank(16);
 
   section('DROPPED OFF BUT LEFT A PHONE NUMBER — worth a follow-up');
   tableHeader(['Name', 'College', 'Phone', 'Got to step', 'Last seen', 'Entry link']);
-  tableBody('=IFERROR(QUERY(' + SUB + 'A2:AA,' +
+  tableBody('=IFERROR(QUERY(' + SUB + 'A2:AC,' +
     '"select H, I, J, S, C, E where D = \'partial\' and J is not null and J != \'\' order by C desc limit 20",0), "Nobody yet")',
     20, 6);
   blank(16);
 
   section('BUILD STAMPS — which version of the page rows came from');
   tableHeader(['clientBuild', 'Rows']);
-  tableBody('=IFERROR(QUERY(QUERY(' + SUB + 'A2:AA,' +
+  tableBody('=IFERROR(QUERY(QUERY(' + SUB + 'A2:AC,' +
     '"select AA, count(A) where AA is not null group by AA order by count(A) desc limit 6",0),' +
     '"select * offset 1",0), "No data yet")', 6, 2);
 
@@ -548,7 +668,8 @@ function runSelfTest() {
     action: 'submit', sessionId: 'SELFTEST', status: 'complete',
     slug: 'selftest', fullName: 'Self Test', college: 'Test College',
     phone: '9999999999', email: '', metroStation: 'Rajiv Chowk',
-    travelMode: 'Metro + walking', dailySpend: 120, oneWayMinutes: 45,
+    travelMode: 'Walking, Metro', travelModesJSON: '["Walking","Metro"]',
+    travelModeCount: 2, dailySpend: 120, oneWayMinutes: 150,
     commuteFeeling: 'Draining', sharedCabInterest: 'yes',
     currentScreen: 'step9', screensReached: 9, totalScreens: 9,
     device: 'desktop', userAgent: 'self-test', eventsJSON: '[]',
@@ -561,6 +682,8 @@ function runSelfTest() {
   say('rows ' + before + ' -> ' + sub.getLastRow());
   const row = findRow(sub, S_SESSION, 'SELFTEST');
   say(row > 0 ? ('SELFTEST row is at row ' + row) : 'NO ROW WAS WRITTEN — see the Errors tab.');
+  const modes = rebuildTravelModes();
+  say('TravelModes rebuilt: ' + modes.rows + ' rows (' + modes.legacy + ' recovered from legacy single values)');
   const errs = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(ERROR_SHEET);
   say(errs && errs.getLastRow() > 1
     ? ('last error: ' + errs.getRange(errs.getLastRow(), 4).getValue())
@@ -578,14 +701,28 @@ function deleteSelfTestRow() {
   const slug = getSheet(SLUG_SHEET, SLUG_HEADERS);
   const srow = findRow(slug, L_SLUG, 'selftest');
   if (srow > 0) slug.deleteRow(srow);
+  rebuildTravelModes(); // derived from Submissions, so it has to follow the delete
   SpreadsheetApp.getActiveSpreadsheet().toast(row > 0 ? 'Self-test row removed.' : 'No self-test row found.');
+}
+
+/* The on-completion refresh above is throttled and best-effort, so the
+   hourly trigger is the floor that guarantees the derived tab is never
+   more than an hour stale even if nobody completes the form. */
+function installTriggers() {
+  ScriptApp.getProjectTriggers().forEach(t => {
+    if (t.getHandlerFunction() === 'rebuildTravelModes') ScriptApp.deleteTrigger(t);
+  });
+  ScriptApp.newTrigger('rebuildTravelModes').timeBased().everyHours(1).create();
 }
 
 function setupSheets() {
   getSheet(SUBMISSIONS_SHEET, SUBMISSION_HEADERS);
   getSheet(SLUG_SHEET, SLUG_HEADERS);
   getSheet(ERROR_SHEET, ERROR_HEADERS);
+  getSheet(TRAVELMODES_SHEET, TRAVELMODES_HEADERS);
   applyConditionalFormatting();
+  rebuildTravelModes();
+  try { installTriggers(); } catch (err) { logError(err, { action: 'installTriggers' }); }
   buildDashboard();
   SpreadsheetApp.getActiveSpreadsheet().toast('Setup complete.');
 }
@@ -594,6 +731,8 @@ function onOpen() {
   SpreadsheetApp.getUi().createMenu('PicaPool')
     .addItem('Run self test', 'runSelfTest')
     .addItem('Rebuild dashboard', 'buildDashboard')
+    .addItem('Rebuild TravelModes report', 'rebuildTravelModes')
+    .addItem('Backfill old rows into TravelModes', 'backfillTravelModes')
     .addItem('Delete self-test row', 'deleteSelfTestRow')
     .addItem('Run full setup', 'setupSheets')
     .addToUi();

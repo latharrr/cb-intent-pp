@@ -10,8 +10,17 @@ is the database, Apps Script is the API, Vercel serves one static file.
 | `apps-script/Code.gs` | The whole backend. Paste into the Sheet's Apps Script editor. |
 | `vercel.json` | Rewrites every path to `index.html`, so `/srcc` is a trackable slug with no server. |
 | `test/smoke.js` | Headless run of the whole page — walks all 9 steps and asserts every beacon. |
+| `test/explode.js` | Unit test for the backend's multi-select explode logic, including the legacy-row recovery path. |
 
-Frontend `BUILD` is `2026-09-10-d`. Backend `CODE_VERSION` is `2026-09-10-a`.
+Frontend `BUILD` is `2026-09-10-e`. Backend `CODE_VERSION` is `2026-09-10-b`.
+
+> **The backend is one version behind the frontend right now.** Page 4 went
+> multi-select, which added two columns and a whole derived tab — none of
+> which exists until `apps-script/Code.gs` is re-pasted and published as a
+> **new version**. Until then the live `/exec` still reports
+> `expectedColumns: 27` and silently drops `travelModesJSON` /
+> `travelModeCount`; the multi-select answer survives only as the joined
+> summary string in column M. See **Finish the Sheet setup** below.
 
 ---
 
@@ -22,7 +31,7 @@ Frontend `BUILD` is `2026-09-10-d`. Backend `CODE_VERSION` is `2026-09-10-a`.
 | Screens | 9, routed by `state.step` + `goto()`/`render()`. Resume works. |
 | Identity | `full_name` + `phone_number` (required), `college` (required), `email_optional`. |
 | Complete | reaching step 9 — page 8's interest answer submits. |
-| Repeatable data | **none** — every answer is a single value, so there is no long-format detail tab (playbook 2.3 does not apply). |
+| Repeatable data | **yes, as of the MSDF-HRC-024 refinement** — page 4 is multi-select, so playbook 2.3 applies: raw blob + summary cell on `Submissions`, exploded into a derived `TravelModes` tab. |
 | Outbound CTAs | **none on the page today.** Page 9 promises "we'll WhatsApp you" but ships no link. |
 | App smart link | none supplied. |
 | Referral incentive | none exists, so the referral code is tracked internally with no promise printed on screen. |
@@ -42,10 +51,11 @@ Partial then complete on the same `sessionId` produced **one** row, not two —
 the upsert is working. Health check any time by opening the `/exec` URL in a
 browser.
 
-The frontend is verified headlessly too — 83 checks, all passing:
+The frontend is verified headlessly too — 114 checks, all passing:
 
 ```bash
 npm i --no-save jsdom && node test/smoke.js
+node test/explode.js   # 12 more, no dependencies
 ```
 
 It boots the real `index.html`, walks all 9 steps, and asserts the payload
@@ -55,7 +65,16 @@ session, CTA injection and click stamping once a link is configured,
 `pagehide` forcing a flush, auto-advance timing on every screen that has
 it, the sound and haptic calls, and the whole page still working in a
 webview with no `sendBeacon`, no `fetch`, no `localStorage` and an
-`AudioContext` that refuses to construct.
+`AudioContext` that refuses to construct. Section 11 asserts the
+MSDF-HRC-024 spec item by item — the removed stations, the page 4 question
+copy, the exact option order, `role="checkbox"`, the box being the *first*
+child so it lands on the left, multi-select toggling, the empty-selection
+guard, and the 30–180 minute chips.
+
+`test/explode.js` covers the backend explode branches without needing Apps
+Script: blob wins over the summary, malformed JSON falls through instead of
+throwing, and pre-multi-select rows are recovered from the old single-value
+column rather than dropped.
 
 **Housekeeping:** that test left a `SELFTEST` row behind. Remove it with
 **PicaPool → Delete self-test row** in the Sheet menu before you read real
@@ -65,23 +84,59 @@ numbers.
 
 ## Finish the Sheet setup
 
-The backend is deployed but the tabs were created by the test POST, not by
-setup — so conditional formatting and the Dashboard don't exist yet.
-
-1. Open the Sheet → **Extensions → Apps Script**.
-2. Run `setupSheets()` once from the function dropdown (approve permissions).
-   That builds `Dashboard`, red/green formatting on `Submissions`, and the
-   `Errors` tab.
-3. Reload the Sheet — a **PicaPool** menu appears with:
+1. Open the Sheet → **Extensions → Apps Script**, and **paste the current
+   `apps-script/Code.gs` over what is there** — it is a version behind.
+2. Run `setupSheets()` from the function dropdown (approve permissions).
+   That appends the two new columns, builds `Dashboard`, `TravelModes`,
+   `Errors`, red/green formatting, and installs the hourly refresh trigger.
+3. **Deploy → Manage deployments → pencil → Version: New version.** Pasting
+   the code does *not* change what `/exec` serves. Confirm by opening the
+   `/exec` URL: `codeVersion` should read `2026-09-10-b` and
+   `expectedColumns` `29`.
+4. Reload the Sheet — a **PicaPool** menu appears with:
    - *Run self test* — writes a `SELFTEST` row and tells you whether the
      script is broken or nothing is reaching it. Those two look identical
      from the Sheet alone; this is the only thing that separates them.
    - *Rebuild dashboard* — safe to re-run any time.
+   - *Rebuild TravelModes report*
+   - *Backfill old rows into TravelModes* — same rebuild, but it reports how
+     many rows it recovered from the pre-multi-select column.
    - *Delete self-test row*
    - *Run full setup*
 
-The Dashboard is pure formulas, so it is always live — nothing to refresh
-on a trigger.
+The Dashboard is pure formulas, so it is always live. `TravelModes` is the
+one derived tab, so it refreshes on an hourly trigger *and*
+opportunistically after each completion (throttled to once a minute) — a
+trigger-only refresh would leave anyone who hasn't re-run setup staring at
+a silently stale tab, and stale looks exactly like missing from outside.
+
+## Page 4 is multi-select
+
+One person can now hold several travel modes, which is the case playbook
+2.3 exists for. Three things go to the Sheet:
+
+| Where | What |
+|---|---|
+| `travelMode` (col M) | readable summary, e.g. `Walking, Metro` — in canonical option order, not tap order, so the same set always reads the same |
+| `travelModesJSON` (col AB) | the lossless blob |
+| `travelModeCount` (col AC) | how many modes |
+
+The blob is exploded into a **`TravelModes`** tab, one row per (person,
+mode), with a `source` column marking whether it came from the blob
+(`preset`) or was recovered from a pre-multi-select row (`legacy-single`).
+That tab is derived — `Submissions` is the source of truth and it gets
+wiped and rebuilt wholesale. Never hand-edit it.
+
+`explodeModes()` in `Code.gs` is the twin of `buildSubmissionPayload()` in
+`index.html`. **Renaming an option in one means renaming it in the other**,
+or the two desync quietly and the tab starts reporting labels the form no
+longer offers.
+
+The Dashboard counts each mode off that tab rather than matching column M,
+because M holds combinations. Bars there sum to more than the number of
+people, which is why the section is labelled as overlapping, and a
+**Most common mode combinations** table sits under it — the one that
+actually matters for pooling people into a shared cab.
 
 ## Deploy the site
 
@@ -131,11 +186,14 @@ on — no Next press:
 
 | Screen | Trigger | Delay |
 |---|---|---|
-| 4 · travel mode | option tap | 320ms |
 | 7 · commute feeling | option tap | 320ms |
 | 8 · shared-cab interest | option tap | 380ms (then submits) |
 | 5 · daily spend | **chip** tap | 900ms |
 | 6 · travel time | **chip** tap | 900ms |
+
+**Page 4 is deliberately not in that table.** It went multi-select, and
+auto-advancing on the first tap would make picking a second mode
+impossible. It uses Next like pages 2, 3, 5 and 6.
 
 The delay is what makes the selected state visible before the screen
 changes. Chips get 900ms on purpose: tapping one reveals the "₹120/day is
