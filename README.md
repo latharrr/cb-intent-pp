@@ -9,8 +9,9 @@ is the database, Apps Script is the API, Vercel serves one static file.
 | `picapool-commute-1.html` | The untouched original, kept as the reference. Not deployed. |
 | `apps-script/Code.gs` | The whole backend. Paste into the Sheet's Apps Script editor. |
 | `vercel.json` | Rewrites every path to `index.html`, so `/srcc` is a trackable slug with no server. |
+| `test/smoke.js` | Headless run of the whole page — walks all 9 steps and asserts every beacon. |
 
-Frontend `BUILD` is `2026-09-10-b`. Backend `CODE_VERSION` is `2026-09-10-a`.
+Frontend `BUILD` is `2026-09-10-c`. Backend `CODE_VERSION` is `2026-09-10-a`.
 
 ---
 
@@ -40,6 +41,19 @@ clientBuilds: { "2026-09-10-b": 1 }   slugs: 2   errors: 0
 Partial then complete on the same `sessionId` produced **one** row, not two —
 the upsert is working. Health check any time by opening the `/exec` URL in a
 browser.
+
+The frontend is verified headlessly too — 57 checks, all passing:
+
+```bash
+npm i --no-save jsdom && node test/smoke.js
+```
+
+It boots the real `index.html`, walks all 9 steps, and asserts the payload
+of every beacon: slug/`?ref` capture, one stable session id, the partial →
+complete transition, resume-where-you-left-off, `?new=1` wiping the
+session, CTA injection and click stamping once a link is configured,
+`pagehide` forcing a flush, and the whole page still working in a webview
+with no `sendBeacon`, no `fetch` and no `localStorage`.
 
 **Housekeeping:** that test left a `SELFTEST` row behind. Remove it with
 **PicaPool → Delete self-test row** in the Sheet menu before you read real

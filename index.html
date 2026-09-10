@@ -1169,7 +1169,7 @@
   /* Which build of this file is live. Rides along on every submission as
      `clientBuild`, so the Sheet itself answers "did the redeploy happen".
      Bump on every meaningful change to this file. */
-  var BUILD = '2026-09-10-b';
+  var BUILD = '2026-09-10-c';
 
   /* ?debug=1 pins a readout to the screen: build, session id, and the
      result of every beacon as it fires. It is the ONLY way to see whether
@@ -1514,7 +1514,12 @@
       injectFinalCTAs();
     }
     bindCtas();
-    syncProgress();
+    /* The final screen must not wait on the 700ms debounce. The existing
+       submitAndShowPage9() calls persistSubmission() BEFORE goto(9), so at
+       that point state.step is still 8 — this is the only place that sends
+       the row as 'complete'. */
+    if (state.step === TOTAL_STEPS){ saveLocal(); flushProgress(); }
+    else syncProgress();
   };
 
   /* completion should not wait on the 700ms debounce */
