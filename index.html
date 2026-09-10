@@ -1,0 +1,1540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<title>PicaPool Commute</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@600;700;800&family=Inter:wght@400;500;600;700&family=Caveat:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#FBF8F2;
+    --teal:#093F3C;
+    --orange:#FF7A33;
+    --white:#FFFFFF;
+    --beige:#F1ECDF;
+    --soft-teal:#EAF2F1;
+    --green:#218836;
+    --muted:rgba(9,63,60,0.62);
+    --border:rgba(9,63,60,0.10);
+  }
+
+  *{box-sizing:border-box;}
+  [hidden]{display:none !important;}
+  html,body{background:var(--bg);}
+  body{
+    margin:0;
+    color:var(--teal);
+    background:var(--bg);
+    font-family:'Inter',system-ui,-apple-system,sans-serif;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.01ms !important; animation-iteration-count:1 !important; transition-duration:0.01ms !important; scroll-behavior:auto !important;}
+  }
+
+  h1,h2,h3,p{margin:0;}
+
+  .stage{
+    min-height:100vh;
+    width:100%;
+    display:flex;
+    justify-content:center;
+    align-items:flex-start;
+    padding:0;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #FDF6EA 0%, var(--bg) 55%);
+  }
+
+  .phone{
+    width:100%;
+    max-width:480px;
+    min-height:100vh;
+    background:var(--bg);
+    display:flex;
+    flex-direction:column;
+    position:relative;
+  }
+
+  @media (min-width:560px){
+    .stage{padding:32px 16px;}
+    .phone{
+      min-height:min(860px, 92vh);
+      height:min(860px, 92vh);
+      border-radius:28px;
+      box-shadow: 0 1px 3px rgba(9,63,60,0.08), 0 30px 60px -24px rgba(9,63,60,0.35);
+      border:1px solid var(--border);
+      overflow:hidden;
+    }
+  }
+
+  /* brand mark */
+  .brandmark{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    padding:18px 22px 4px 22px;
+  }
+  .brandmark .word{
+    font:700 17px/1 'Baloo 2',sans-serif;
+    color:var(--teal);
+    letter-spacing:.01em;
+  }
+  .brandmark .word b{color:var(--orange); font-weight:700;}
+  .brandmark .stepcount{
+    font:500 13px/1 'Inter',sans-serif;
+    color:var(--muted);
+  }
+
+  /* progress */
+  .progress-wrap{
+    display:flex;
+    gap:5px;
+    padding:14px 22px 0 22px;
+    flex-shrink:0;
+  }
+  .seg{
+    height:5px;
+    flex:1;
+    border-radius:999px;
+    background:var(--beige);
+    overflow:hidden;
+  }
+  .seg i{
+    display:block;
+    height:100%;
+    width:0%;
+    background:var(--teal);
+    border-radius:999px;
+    transition:width .25s ease;
+  }
+  .seg.done i{width:100%;}
+  .seg.active i{width:100%;}
+
+  .screen-outer{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    overflow-y:auto;
+    -webkit-overflow-scrolling:touch;
+  }
+
+  .screen{
+    padding:20px 22px 28px 22px;
+    display:flex;
+    flex-direction:column;
+    flex:1 0 auto;
+    min-height:100%;
+    animation: fadeSlide .28s ease;
+  }
+
+  @keyframes fadeSlide{
+    from{opacity:0; transform:translateY(6px);}
+    to{opacity:1; transform:translateY(0);}
+  }
+
+  .back-btn{
+    align-self:flex-start;
+    background:none;
+    border:none;
+    color:var(--muted);
+    font:600 13px/1 'Inter',sans-serif;
+    padding:6px 2px 16px 2px;
+    cursor:pointer;
+  }
+  .back-btn:hover{color:var(--teal);}
+  .back-btn:focus-visible{outline:2px solid var(--orange); outline-offset:2px; border-radius:4px;}
+
+  .spacer{flex:1; min-height:24px;}
+
+  /* Typography roles */
+  .hero{
+    font:800 clamp(29px,8.4vw,36px)/1.18 'Baloo 2',sans-serif;
+    color:var(--teal);
+    text-wrap:balance;
+    margin-top:16px;
+    margin-bottom:12px;
+  }
+  .question{
+    font:800 clamp(23px,6.8vw,27px)/1.15 'Baloo 2',sans-serif;
+    color:var(--teal);
+    text-wrap:balance;
+    margin-bottom:8px;
+  }
+  .helper{
+    font:500 14px/1.45 'Inter',sans-serif;
+    color:var(--muted);
+    margin-bottom:22px;
+  }
+  .mechanism{
+    font:500 16.5px/1.5 'Inter',sans-serif;
+    color:var(--muted);
+    margin-bottom:8px;
+    max-width:340px;
+  }
+
+  /* Page 1 hero illustration */
+  .hero-illustration{
+    width:100%;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    margin:6px 0 6px 0;
+  }
+  .hero-illustration svg{width:100%; height:auto; max-width:400px; display:block;}
+
+  /* Page 1 trust — compact soft-teal reassurance module */
+  .trust-block{
+    background:var(--soft-teal);
+    border-radius:18px;
+    padding:16px 18px;
+    margin-bottom:18px;
+    display:flex;
+    gap:14px;
+    align-items:flex-start;
+  }
+  .trust-icon{
+    width:56px;
+    height:56px;
+    border-radius:14px;
+    background:var(--white);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:26px;
+    flex-shrink:0;
+    position:relative;
+  }
+  .trust-icon .spark{
+    position:absolute;
+    width:9px;
+    height:2px;
+    border-radius:2px;
+    background:var(--orange);
+  }
+  .trust-icon .spark.s1{top:-3px; right:6px; transform:rotate(45deg);}
+  .trust-icon .spark.s2{top:6px; right:-5px; transform:rotate(100deg);}
+  .trust-body{flex:1; min-width:0;}
+  .trust-title{
+    font:700 16.5px/1.25 'Baloo 2',sans-serif;
+    color:var(--teal);
+    margin-bottom:4px;
+  }
+  .trust-sub{
+    font:500 13.5px/1.4 'Inter',sans-serif;
+    color:var(--muted);
+    margin-bottom:12px;
+  }
+  .verify-row{display:flex; flex-direction:column; gap:6px;}
+  .verify-item{
+    font:600 13.5px/1.3 'Inter',sans-serif;
+    color:var(--teal);
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+
+  /* micro insight */
+  .insight{
+    display:flex;
+    align-items:flex-start;
+    gap:8px;
+    font:600 13.5px/1.42 'Inter',sans-serif;
+    color:var(--teal);
+    margin:22px 0 4px 0;
+  }
+  .insight .ic{font-size:15px; line-height:1.42; flex-shrink:0;}
+  .insight b{color:var(--orange); font-weight:700;}
+
+  /* fields */
+  .field{margin-bottom:18px;}
+  .field label{
+    display:block;
+    font:600 13px/1 'Inter',sans-serif;
+    color:var(--teal);
+    margin-bottom:8px;
+  }
+  .field label .opt{
+    color:var(--muted);
+    font-weight:500;
+    font-size:11.5px;
+    margin-left:4px;
+  }
+  .field input{
+    width:100%;
+    min-height:50px;
+    border-radius:14px;
+    border:1.5px solid var(--border);
+    background:var(--white);
+    font:500 16px/1.3 'Inter',sans-serif;
+    color:var(--teal);
+    padding:0 16px;
+    outline:none;
+    transition:border-color .15s ease, box-shadow .15s ease;
+  }
+  .field input::placeholder{color:rgba(9,63,60,0.35);}
+  .field input:focus{
+    border-color:var(--teal);
+    box-shadow:0 0 0 3px rgba(9,63,60,0.10);
+  }
+  .field.err input{border-color:var(--orange);}
+  .field .errmsg{
+    display:none;
+    font:600 12px/1.3 'Inter',sans-serif;
+    color:var(--orange);
+    margin-top:6px;
+  }
+  .field.err .errmsg{display:block;}
+
+  .prefix-input{position:relative;}
+  .prefix-input .prefix{
+    position:absolute;
+    left:16px; top:50%; transform:translateY(-50%);
+    font:600 16px 'Inter',sans-serif;
+    color:var(--teal);
+    pointer-events:none;
+  }
+  .prefix-input input{padding-left:32px;}
+
+  .chip-row{
+    display:flex;
+    gap:8px;
+    flex-wrap:wrap;
+    margin:10px 0 4px 0;
+  }
+  .chip{
+    background:var(--beige);
+    border:1px solid var(--border);
+    color:var(--teal);
+    font:600 13px/1 'Inter',sans-serif;
+    padding:9px 13px;
+    border-radius:999px;
+    cursor:pointer;
+    transition:background .15s ease, border-color .15s ease;
+  }
+  .chip:hover{border-color:var(--teal);}
+  .chip.sel{
+    background:var(--teal);
+    border-color:var(--teal);
+    color:var(--white);
+  }
+
+  .priv-block{margin:6px 0 18px 0; padding:14px 16px; background:var(--soft-teal); border-radius:14px;}
+  .priv-title{
+    font:700 15.5px/1.3 'Baloo 2',sans-serif;
+    color:var(--teal);
+    margin-bottom:4px;
+  }
+  .priv-sub{
+    font:500 12px/1.4 'Inter',sans-serif;
+    color:var(--muted);
+  }
+
+  /* options */
+  .options{
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    margin-bottom:6px;
+  }
+  .option{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    background:var(--white);
+    border:1.5px solid var(--border);
+    border-radius:16px;
+    padding:14px 16px;
+    min-height:52px;
+    cursor:pointer;
+    font:600 15.5px/1.3 'Inter',sans-serif;
+    color:var(--teal);
+    transition:border-color .15s ease, background .15s ease;
+  }
+  .option:hover{border-color:rgba(9,63,60,0.28);}
+  .option .label{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    min-width:0;
+  }
+  .option .oicon{
+    font-size:17px;
+    line-height:1;
+    flex-shrink:0;
+    width:22px;
+    text-align:center;
+  }
+  .option .dot{
+    width:20px;height:20px;
+    border-radius:50%;
+    border:2px solid var(--border);
+    flex-shrink:0;
+    position:relative;
+    transition:border-color .15s ease;
+  }
+  .option .dot::after{
+    content:'';
+    position:absolute; inset:3px;
+    border-radius:50%;
+    background:var(--orange);
+    transform:scale(0);
+    transition:transform .15s ease;
+  }
+  .option.sel{
+    border-color:var(--orange);
+    background:#FFF6EF;
+  }
+  .option.sel .dot{border-color:var(--orange);}
+  .option.sel .dot::after{transform:scale(1);}
+  .option:focus-visible{outline:2px solid var(--orange); outline-offset:2px;}
+
+  /* CTA */
+  .cta-area{
+    margin-top:auto;
+    padding-top:26px;
+  }
+  .btn{
+    width:100%;
+    min-height:52px;
+    border-radius:15px;
+    border:none;
+    background:var(--orange);
+    color:var(--white);
+    font:700 16px/1 'Inter',sans-serif;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:6px;
+    cursor:pointer;
+    box-shadow:0 10px 24px -10px rgba(255,122,51,0.55);
+    transition:transform .12s ease, box-shadow .12s ease, opacity .12s ease;
+  }
+  .btn:active{transform:translateY(1px) scale(0.99);}
+  .btn:focus-visible{outline:2px solid var(--teal); outline-offset:3px;}
+
+  .safe-bottom{height:10px;}
+
+  /* Page 8: shared-cab pitch */
+  .pitch-line{
+    font:500 15.5px/1.5 'Inter',sans-serif;
+    color:var(--teal);
+    margin-bottom:18px;
+  }
+  .pitch-strong{
+    font:800 21px/1.25 'Baloo 2',sans-serif;
+    color:var(--orange);
+    margin:2px 0 26px 0;
+  }
+  .pitch-q{
+    font:700 19px/1.25 'Baloo 2',sans-serif;
+    color:var(--teal);
+    margin:0 0 14px 0;
+  }
+
+  /* Page 9: confirmation */
+  .celebrate{
+    position:relative;
+    height:78px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    margin:6px 0 18px 0;
+  }
+  .celebrate .core{font-size:46px; line-height:1; position:relative; z-index:1;}
+  .celebrate .dot{position:absolute; border-radius:50%;}
+  .celebrate .d1{width:14px; height:14px; background:var(--orange); top:2px; left:calc(50% - 54px);}
+  .celebrate .d2{width:9px; height:9px; background:var(--teal); top:10px; right:calc(50% - 58px);}
+  .celebrate .d3{width:10px; height:10px; background:transparent; border:2px solid var(--orange); bottom:6px; left:calc(50% - 44px);}
+  .celebrate .d4{width:8px; height:8px; background:var(--teal); bottom:0; right:calc(50% - 40px);}
+  .celebrate .bar{position:absolute; width:14px; height:3px; border-radius:2px; background:var(--orange);}
+  .celebrate .b1{top:18px; left:calc(50% + 36px); transform:rotate(-30deg);}
+  .celebrate .b2{bottom:14px; right:calc(50% + 30px); transform:rotate(20deg); background:var(--teal);}
+  .confirm-title{
+    font:800 clamp(30px,8vw,36px)/1.12 'Baloo 2',sans-serif;
+    color:var(--teal);
+    margin-bottom:8px;
+    text-align:center;
+  }
+  .confirm-sub{
+    font:500 14.5px/1.4 'Inter',sans-serif;
+    color:var(--muted);
+    margin-bottom:28px;
+    text-align:center;
+  }
+  .panel{
+    background:var(--white);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:15px 16px;
+    margin-bottom:26px;
+  }
+  .panel-title{
+    font:700 11px/1 'Inter',sans-serif;
+    letter-spacing:.05em;
+    text-transform:uppercase;
+    color:var(--muted);
+    margin-bottom:11px;
+  }
+  .detail-row{
+    display:flex;
+    justify-content:space-between;
+    gap:12px;
+    font:500 13px/1.5 'Inter',sans-serif;
+    color:var(--muted);
+    padding:2px 0;
+  }
+  .detail-row b{font-weight:600; color:var(--teal);}
+  .panel-divider{
+    height:1px;
+    background:var(--border);
+    margin:12px 0;
+  }
+  .commute-route{
+    font:700 16.5px/1.3 'Baloo 2',sans-serif;
+    color:var(--teal);
+    margin-bottom:9px;
+  }
+  .commute-tags{
+    display:flex;
+    flex-wrap:wrap;
+    gap:7px;
+  }
+  .commute-tag{
+    background:var(--beige);
+    border:1px solid var(--border);
+    color:var(--teal);
+    font:600 12px/1 'Inter',sans-serif;
+    padding:6px 10px;
+    border-radius:999px;
+  }
+  .memorable{
+    font:800 clamp(22px,6.2vw,26px)/1.25 'Baloo 2',sans-serif;
+    color:var(--teal);
+    margin:0 0 24px 0;
+    text-wrap:balance;
+  }
+  .next-line-1{
+    font:500 15px/1.5 'Inter',sans-serif;
+    color:var(--teal);
+    margin-bottom:8px;
+  }
+  .next-line-2{
+    font:600 14.5px/1.5 'Inter',sans-serif;
+    color:var(--muted);
+    margin-bottom:26px;
+  }
+  .thanks{
+    font:500 14px/1.5 'Inter',sans-serif;
+    color:var(--muted);
+  }
+
+  .confetti{
+    position:absolute;
+    inset:0;
+    pointer-events:none;
+    overflow:hidden;
+    z-index:2;
+  }
+  .confetti span{
+    position:absolute;
+    top:-24px;
+    font-size:16px;
+    animation:fall 1.6s ease-in forwards;
+    opacity:0;
+  }
+  @keyframes fall{
+    0%{opacity:0; transform:translateY(0) rotate(0deg);}
+    10%{opacity:1;}
+    100%{opacity:0; transform:translateY(340px) rotate(160deg);}
+  }
+</style>
+
+<div class="stage">
+  <div class="phone">
+    <div class="brandmark" id="brandmark" hidden><span class="word">Pica<b>Pool</b></span><span class="stepcount">1 of 9</span></div>
+    <div class="progress-wrap" id="progressWrap" role="progressbar" aria-label="Form progress"></div>
+    <div class="screen-outer" id="screenOuter">
+      <div class="screen" id="screen"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  var TOTAL_STEPS = 9;
+  var METRO_STATIONS = [
+    "Rithala","Rohini West","Rohini East","Pitampura","Kohat Enclave","Netaji Subhash Place",
+    "Keshav Puram","Kanhaiya Nagar","Inderlok","Shastri Nagar","Tis Hazari","Pul Bangash",
+    "Pratap Nagar","Shastri Park","Samaypur Badli","Rohini Sector 18-19","Haiderpur Badli Mor",
+    "Jahangirpuri","Adarsh Nagar","Azadpur","Model Town","GTB Nagar","Vishwavidyalaya",
+    "Vidhan Sabha","Civil Lines","Kashmere Gate","Chandni Chowk","Chawri Bazar","New Delhi",
+    "Rajiv Chowk","Patel Chowk","Central Secretariat","Shakurpur","Punjabi Bagh","ESI Hospital",
+    "Rajouri Garden","Karol Bagh","Jhandewalan","Dwarka Sector 21","Majlis Park","Shalimar Bagh",
+    "Welcome","Seelampur","Shahdara","Dilshad Garden",
+    "Mundka","Nangloi","Udyog Nagar","Peeragarhi","Uttam Nagar East","Janakpuri West",
+    "Noida Sector 15","Noida Sector 16","Botanical Garden","Vaishali","Kaushambi","Anand Vihar",
+    "Laxmi Nagar","Mayur Vihar-I","Akshardham","Lajpat Nagar","Kalkaji Mandir","Saket",
+    "Hauz Khas","Green Park","AIIMS","INA","Dhaula Kuan","Gurgaon"
+  ];
+
+  var state = {
+    step: 1,
+    data: {
+      full_name:"",
+      college:"",
+      phone_number:"",
+      email_optional:"",
+      nearest_metro_station:"",
+      travel_mode:"",
+      daily_travel_spend:"",
+      daily_one_way_travel_time:"",
+      commute_feeling:"",
+      shared_cab_interest:""
+    },
+    submitted:false
+  };
+
+  var dbNS = null;
+  if (window.claude && typeof window.claude.use === "function"){
+    window.claude.use("db").then(function(ns){ dbNS = ns; }).catch(function(){ dbNS = null; });
+  }
+
+  var screenEl = document.getElementById("screen");
+  var screenOuterEl = document.getElementById("screenOuter");
+  var progressWrap = document.getElementById("progressWrap");
+  var brandmarkEl = document.getElementById("brandmark");
+
+  function esc(s){
+    return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+
+  /* small perception-shifting insight line: icon optional */
+  function insightHTML(text, icon){
+    return '<div class="insight">' + (icon ? '<span class="ic">'+icon+'</span>' : '') + '<span>'+text+'</span></div>';
+  }
+
+  function renderProgress(){
+    var html = "";
+    for (var i=1;i<=TOTAL_STEPS;i++){
+      var cls = "seg";
+      if (i < state.step) cls += " done";
+      else if (i === state.step) cls += " active";
+      html += '<div class="'+cls+'"><i></i></div>';
+    }
+    progressWrap.innerHTML = html;
+    progressWrap.setAttribute("aria-valuenow", state.step);
+    progressWrap.setAttribute("aria-valuemin","1");
+    progressWrap.setAttribute("aria-valuemax", TOTAL_STEPS);
+  }
+
+  function goto(step){
+    state.step = step;
+    render();
+    screenOuterEl.scrollTop = 0;
+  }
+
+  function backBtn(){
+    return '<button type="button" class="back-btn" id="backBtn">&larr; Back</button>';
+  }
+
+  function fieldErr(key, msg){
+    var el = document.querySelector('[data-field="'+key+'"] .errmsg');
+    var wrap = document.querySelector('[data-field="'+key+'"]');
+    if (wrap) wrap.classList.add("err");
+    if (el) el.textContent = msg;
+  }
+  function clearErrs(){
+    document.querySelectorAll(".field.err").forEach(function(f){ f.classList.remove("err"); });
+  }
+  function alertInline(anchorId, msg){
+    var anchor = document.getElementById(anchorId);
+    if (!anchor) return;
+    var existing = anchor.parentNode.querySelector(".inline-alert");
+    if (existing) return;
+    var d = document.createElement("div");
+    d.className = "inline-alert";
+    d.style.cssText = "font:600 12.5px 'Inter',sans-serif;color:var(--orange);margin-top:8px;";
+    d.textContent = msg;
+    anchor.insertAdjacentElement("afterend", d);
+    setTimeout(function(){ d.remove(); }, 2200);
+  }
+
+  /* ---------- render dispatch ---------- */
+  function render(){
+    brandmarkEl.hidden = state.step !== 1;
+    renderProgress();
+    if (state.step === 1) renderPage1();
+    else if (state.step === 2) renderPage2();
+    else if (state.step === 3) renderPage3();
+    else if (state.step === 4) renderPage4();
+    else if (state.step === 5) renderPage5();
+    else if (state.step === 6) renderPage6();
+    else if (state.step === 7) renderPage7();
+    else if (state.step === 8) renderPage8();
+    else if (state.step === 9) renderPage9();
+  }
+
+  /* ---------- PAGE 1: introduction / pitch ---------- */
+  var HERO_ILLUSTRATION_SVG =
+    '<svg viewBox="0 0 430 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Three students sharing a cab to college">'+
+      '<ellipse cx="52" cy="34" rx="26" ry="12" fill="#F1ECDF"/>'+
+      '<ellipse cx="78" cy="40" rx="17" ry="9" fill="#F1ECDF"/>'+
+      '<rect x="234" y="64" width="24" height="92" fill="#EAF2F1"/>'+
+      '<rect x="264" y="46" width="19" height="110" fill="#EAF2F1"/>'+
+      '<rect x="289" y="80" width="23" height="76" fill="#EAF2F1"/>'+
+      '<ellipse cx="36" cy="214" rx="32" ry="15" fill="#DDEBD9"/>'+
+      '<ellipse cx="346" cy="210" rx="28" ry="14" fill="#DDEBD9"/>'+
+      '<line x1="64" y1="146" x2="64" y2="200" stroke="#093F3C" stroke-width="4" stroke-linecap="round"/>'+
+      '<g transform="rotate(-6 64 124)">'+
+        '<rect x="14" y="104" width="100" height="38" rx="9" fill="#093F3C"/>'+
+        '<path d="M14 123 L2 123 L14 112 Z" fill="#093F3C"/>'+
+        '<text x="64" y="129" font-family=\'Baloo 2\',sans-serif font-size="16" font-weight="700" fill="#FFFFFF" text-anchor="middle">College</text>'+
+      '</g>'+
+      '<path d="M102 92 L109 80" stroke="#FF7A33" stroke-width="3" stroke-linecap="round"/>'+
+      '<path d="M118 96 L129 88" stroke="#FF7A33" stroke-width="3" stroke-linecap="round"/>'+
+      '<ellipse cx="190" cy="222" rx="98" ry="10" fill="#EFE7D6"/>'+
+      '<rect x="116" y="196" width="27" height="27" rx="6" fill="#0B2E2C"/>'+
+      '<rect x="237" y="196" width="27" height="27" rx="6" fill="#0B2E2C"/>'+
+      '<path d="M106 206 C106 164 127 140 160 138 L220 138 C253 140 274 164 274 206 L274 212 C274 218 270 222 264 222 L116 222 C110 222 106 218 106 212 Z" fill="#F5AE3C"/>'+
+      '<path d="M138 140 C142 110 157 96 190 96 C223 96 238 110 242 140 Z" fill="#F5AE3C"/>'+
+      '<path d="M149 138 C153 114 168 104 190 104 C212 104 227 114 231 138 Z" fill="#EAF6F5"/>'+
+      '<circle cx="167" cy="125" r="12" fill="#8A5A3B"/>'+
+      '<circle cx="190" cy="123" r="12" fill="#3B2A22"/>'+
+      '<circle cx="213" cy="125" r="12" fill="#6B4226"/>'+
+      '<path d="M158 121 C158 113 162 108 167 108 C172 108 176 112 176 118" fill="none" stroke="#241812" stroke-width="0"/>'+
+      '<ellipse cx="118" cy="186" rx="7" ry="9" fill="#FFF6E8"/>'+
+      '<ellipse cx="262" cy="186" rx="7" ry="9" fill="#FFF6E8"/>'+
+      '<rect x="168" y="190" width="44" height="10" rx="3" fill="#0B2E2C"/>'+
+      '<rect x="171" y="205" width="38" height="12" rx="2" fill="#FBF8F2" stroke="#0B2E2C" stroke-width="1"/>'+
+      '<g font-family="\'Caveat\',cursive" fill="#093F3C" font-weight="700">'+
+        '<text x="250" y="56" font-size="21">Same route</text>'+
+        '<text x="264" y="87" font-size="21">Lower fare</text>'+
+        '<text x="250" y="118" font-size="21">Happier days</text>'+
+      '</g>'+
+      '<path d="M246 82 C232 96 224 106 218 116" stroke="#093F3C" stroke-width="2" fill="none" stroke-linecap="round"/>'+
+      '<path d="M212 118 L218 116 L215 110" stroke="#093F3C" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>'+
+    '</svg>';
+
+  function renderPage1(){
+    screenEl.innerHTML =
+      '<h1 class="hero">Imagine getting<br>a cab at the price of a metro ride.</h1>'+
+      '<p class="mechanism">Share a cab with students on your route for around the price of a metro.</p>'+
+      '<div class="hero-illustration">'+HERO_ILLUSTRATION_SVG+'</div>'+
+      '<div class="spacer"></div>'+
+      '<div class="trust-block">'+
+        '<div class="trust-icon">🎓<span class="spark s1"></span><span class="spark s2"></span></div>'+
+        '<div class="trust-body">'+
+          '<div class="trust-title">No random strangers.</div>'+
+          '<div class="trust-sub">Only verified students from my college.</div>'+
+          '<div class="verify-row">'+
+            '<div class="verify-item"><span>🎓</span><span>College ID verified</span></div>'+
+            '<div class="verify-item"><span>✉️</span><span>College email verified</span></div>'+
+          '</div>'+
+        '</div>'+
+      '</div>'+
+      '<div class="cta-area" style="padding-top:0;"><button type="button" class="btn" id="p1cta">Tell us where you come from →</button></div>'+
+      '<div class="safe-bottom"></div>';
+    document.getElementById("p1cta").addEventListener("click", function(){ goto(2); });
+  }
+
+  /* ---------- PAGE 2: basic details ---------- */
+  function renderPage2(){
+    var d = state.data;
+    screenEl.innerHTML =
+      backBtn()+
+      '<h2 class="question" style="margin-bottom:20px;">Your details</h2>'+
+      '<div class="field" data-field="full_name">'+
+        '<label for="in_name">Full name</label>'+
+        '<input id="in_name" type="text" autocomplete="name" placeholder="e.g. Ananya Sharma" value="'+esc(d.full_name)+'">'+
+        '<div class="errmsg">This field is required.</div>'+
+      '</div>'+
+      '<div class="field" data-field="college">'+
+        '<label for="in_college">Your college</label>'+
+        '<input id="in_college" type="text" autocomplete="organization" placeholder="e.g. SRCC" value="'+esc(d.college)+'">'+
+        '<div class="errmsg">This field is required.</div>'+
+      '</div>'+
+      '<div class="field" data-field="phone_number">'+
+        '<label for="in_phone">Phone number</label>'+
+        '<input id="in_phone" type="tel" inputmode="numeric" autocomplete="tel" placeholder="10-digit mobile number" value="'+esc(d.phone_number)+'">'+
+        '<div class="errmsg">Enter a valid 10-digit phone number.</div>'+
+      '</div>'+
+      '<div class="priv-block">'+
+        '<div class="priv-title">We promise not to spam call or message you.</div>'+
+        '<div class="priv-sub">We know it&rsquo;s annoying. We only need your details to verify you and help match your commute.</div>'+
+      '</div>'+
+      '<div class="field" data-field="email_optional">'+
+        '<label for="in_email">Your email <span class="opt">(optional)</span></label>'+
+        '<input id="in_email" type="email" autocomplete="email" placeholder="you@example.com" value="'+esc(d.email_optional)+'">'+
+        '<div class="errmsg">Enter a valid email address.</div>'+
+      '</div>'+
+      '<div class="spacer"></div>'+
+      insightHTML('People coming from Noida can save 1.5 hours on commute every day.')+
+      '<div class="cta-area"><button type="button" class="btn" id="p2next">Next →</button></div>'+
+      '<div class="safe-bottom"></div>';
+
+    document.getElementById("backBtn").addEventListener("click", function(){ goto(1); });
+    document.getElementById("p2next").addEventListener("click", function(){
+      clearErrs();
+      var name = document.getElementById("in_name").value.trim();
+      var college = document.getElementById("in_college").value.trim();
+      var phone = document.getElementById("in_phone").value.trim();
+      var email = document.getElementById("in_email").value.trim();
+      var ok = true;
+      if (!name){ fieldErr("full_name","This field is required."); ok=false; }
+      if (!college){ fieldErr("college","This field is required."); ok=false; }
+      var phoneDigits = phone.replace(/\D/g,"");
+      if (!phone){ fieldErr("phone_number","This field is required."); ok=false; }
+      else if (phoneDigits.length !== 10){ fieldErr("phone_number","Enter a valid 10-digit phone number."); ok=false; }
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ fieldErr("email_optional","Enter a valid email address."); ok=false; }
+      if (!ok) return;
+      state.data.full_name = name;
+      state.data.college = college;
+      state.data.phone_number = phoneDigits;
+      state.data.email_optional = email;
+      goto(3);
+    });
+  }
+
+  /* ---------- PAGE 3: nearest metro station ---------- */
+  function renderPage3(){
+    var opts = METRO_STATIONS.map(function(s){ return '<option value="'+esc(s)+'">'; }).join("");
+    screenEl.innerHTML =
+      backBtn()+
+      '<h2 class="question">What&rsquo;s the nearest metro station to your home?</h2>'+
+      '<p class="helper">We&rsquo;ll use this to find students travelling from the same area as you.</p>'+
+      '<div class="field" data-field="nearest_metro_station">'+
+        '<label for="in_metro">Nearest metro station</label>'+
+        '<input id="in_metro" type="text" list="metroList" placeholder="Start typing your station" value="'+esc(state.data.nearest_metro_station)+'">'+
+        '<datalist id="metroList">'+opts+'</datalist>'+
+        '<div class="errmsg">This field is required.</div>'+
+      '</div>'+
+      '<div class="spacer"></div>'+
+      insightHTML('7,000+ students in our network travel to college every day.','📍')+
+      '<div class="cta-area"><button type="button" class="btn" id="p3next">Next →</button></div>'+
+      '<div class="safe-bottom"></div>';
+
+    document.getElementById("backBtn").addEventListener("click", function(){ goto(2); });
+    document.getElementById("p3next").addEventListener("click", function(){
+      clearErrs();
+      var v = document.getElementById("in_metro").value.trim();
+      if (!v){ fieldErr("nearest_metro_station","This field is required."); return; }
+      state.data.nearest_metro_station = v;
+      goto(4);
+    });
+  }
+
+  /* ---------- PAGE 4: travel mode ---------- */
+  var TRAVEL_MODES = ["Metro + walking","Metro + auto/Rapido","Bus","Personal vehicle","Cab/auto","Other"];
+  var TRAVEL_MODE_ICONS = {
+    "Metro + walking":"🚶",
+    "Metro + auto/Rapido":"🚇",
+    "Bus":"🚌",
+    "Personal vehicle":"🛵",
+    "Cab/auto":"🚕",
+    "Other":"✦"
+  };
+  function renderPage4(){
+    var optsHtml = TRAVEL_MODES.map(function(m){
+      var sel = state.data.travel_mode === m ? " sel" : "";
+      return '<div class="option'+sel+'" role="radio" aria-checked="'+(sel?"true":"false")+'" tabindex="0" data-mode="'+esc(m)+'">'+
+        '<span class="label"><span class="oicon">'+TRAVEL_MODE_ICONS[m]+'</span><span>'+esc(m)+'</span></span><span class="dot"></span></div>';
+    }).join("");
+    screenEl.innerHTML =
+      backBtn()+
+      '<h2 class="question">How do you usually get to college?</h2>'+
+      '<div class="options" role="radiogroup" id="modeOptions" style="margin-top:14px;">'+optsHtml+'</div>'+
+      '<div class="spacer"></div>'+
+      insightHTML('Long, crowded metro commutes can contribute to chronic neck, back and shoulder strain over time.')+
+      '<div class="cta-area"><button type="button" class="btn" id="p4next">Next →</button></div>'+
+      '<div class="safe-bottom"></div>';
+
+    document.getElementById("backBtn").addEventListener("click", function(){ goto(3); });
+    document.querySelectorAll("#modeOptions .option").forEach(function(el){
+      var pick = function(){
+        state.data.travel_mode = el.getAttribute("data-mode");
+        document.querySelectorAll("#modeOptions .option").forEach(function(o){
+          o.classList.remove("sel"); o.setAttribute("aria-checked","false");
+        });
+        el.classList.add("sel"); el.setAttribute("aria-checked","true");
+      };
+      el.addEventListener("click", pick);
+      el.addEventListener("keydown", function(e){ if (e.key==="Enter"||e.key===" "){ e.preventDefault(); pick(); } });
+    });
+    document.getElementById("p4next").addEventListener("click", function(){
+      if (!state.data.travel_mode){
+        alertInline("modeOptions","Please choose an option to continue.");
+        return;
+      }
+      goto(5);
+    });
+  }
+
+  /* ---------- PAGE 5: daily spend ---------- */
+  var SPEND_CHIPS = [60,80,100,120,150,200];
+  function renderPage5(){
+    screenEl.innerHTML =
+      backBtn()+
+      '<h2 class="question">How much do you spend on travel every day?</h2>'+
+      '<div class="field prefix-input" data-field="daily_travel_spend" style="margin-top:14px;">'+
+        '<label for="in_spend">Daily travel spend</label>'+
+        '<div style="position:relative;">'+
+          '<span class="prefix">₹</span>'+
+          '<input id="in_spend" type="text" inputmode="numeric" placeholder="e.g. 120" value="'+esc(state.data.daily_travel_spend)+'">'+
+        '</div>'+
+        '<div class="errmsg">This field is required.</div>'+
+      '</div>'+
+      '<div class="chip-row" id="spendChips">'+
+        SPEND_CHIPS.map(function(v){ return '<div class="chip" data-v="'+v+'">₹'+v+'</div>'; }).join("")+
+      '</div>'+
+      '<div class="spacer"></div>'+
+      '<div id="spendInsight"></div>'+
+      '<div class="cta-area"><button type="button" class="btn" id="p5next">Next →</button></div>'+
+      '<div class="safe-bottom"></div>';
+
+    document.getElementById("backBtn").addEventListener("click", function(){ goto(4); });
+    var input = document.getElementById("in_spend");
+
+    function updateInsight(){
+      var digits = input.value.replace(/[^\d.]/g,"");
+      if (digits !== input.value) input.value = digits;
+      var v = parseFloat(digits);
+      var box = document.getElementById("spendInsight");
+      if (!v || v <= 0){
+        box.innerHTML = "";
+        return;
+      }
+      var daily = Math.round(v);
+      var monthly = Math.round(v * 26);
+      box.innerHTML = insightHTML('₹'+daily+'/day is ₹<b>'+monthly.toLocaleString("en-IN")+'+</b> every month.', '💰');
+      document.querySelectorAll("#spendChips .chip").forEach(function(c){
+        c.classList.toggle("sel", parseFloat(c.getAttribute("data-v")) === v);
+      });
+    }
+    input.addEventListener("input", updateInsight);
+    document.querySelectorAll("#spendChips .chip").forEach(function(c){
+      c.addEventListener("click", function(){
+        input.value = c.getAttribute("data-v");
+        updateInsight();
+      });
+    });
+    updateInsight();
+
+    document.getElementById("p5next").addEventListener("click", function(){
+      clearErrs();
+      var v = input.value.trim();
+      if (!v || parseFloat(v) <= 0){ fieldErr("daily_travel_spend","This field is required."); return; }
+      state.data.daily_travel_spend = Math.round(parseFloat(v));
+      goto(6);
+    });
+  }
+
+  /* ---------- PAGE 6: travel time ---------- */
+  var TIME_CHIPS = [20,30,45,60,90,120];
+  function renderPage6(){
+    screenEl.innerHTML =
+      backBtn()+
+      '<h2 class="question">How much time does it take to travel daily?</h2>'+
+      '<p class="helper">One-way commute — from home to college.</p>'+
+      '<div class="field" data-field="daily_one_way_travel_time">'+
+        '<label for="in_time">One-way travel time (minutes)</label>'+
+        '<input id="in_time" type="text" inputmode="numeric" placeholder="e.g. 45" value="'+esc(state.data.daily_one_way_travel_time)+'">'+
+        '<div class="errmsg">This field is required.</div>'+
+      '</div>'+
+      '<div class="chip-row" id="timeChips">'+
+        TIME_CHIPS.map(function(v){ return '<div class="chip" data-v="'+v+'">'+v+' min</div>'; }).join("")+
+      '</div>'+
+      '<div class="spacer"></div>'+
+      insightHTML('Switching to a cab can save, on average, 1 hour a day on your commute.')+
+      '<div class="cta-area"><button type="button" class="btn" id="p6next">Next →</button></div>'+
+      '<div class="safe-bottom"></div>';
+
+    document.getElementById("backBtn").addEventListener("click", function(){ goto(5); });
+    var input = document.getElementById("in_time");
+
+    function syncChips(){
+      var digits = input.value.replace(/[^\d.]/g,"");
+      if (digits !== input.value) input.value = digits;
+      var v = parseFloat(digits);
+      document.querySelectorAll("#timeChips .chip").forEach(function(c){
+        c.classList.toggle("sel", parseFloat(c.getAttribute("data-v")) === v);
+      });
+    }
+    input.addEventListener("input", syncChips);
+    document.querySelectorAll("#timeChips .chip").forEach(function(c){
+      c.addEventListener("click", function(){
+        input.value = c.getAttribute("data-v");
+        syncChips();
+      });
+    });
+    syncChips();
+
+    document.getElementById("p6next").addEventListener("click", function(){
+      clearErrs();
+      var v = input.value.trim();
+      if (!v || parseFloat(v) <= 0){ fieldErr("daily_one_way_travel_time","This field is required."); return; }
+      state.data.daily_one_way_travel_time = Math.round(parseFloat(v));
+      goto(7);
+    });
+  }
+
+  /* ---------- PAGE 7: commute feeling ---------- */
+  var FEELINGS = ["Relaxed","Manageable","Tired out","Draining"];
+  var FEELING_ICONS = {"Relaxed":"😌","Manageable":"🙂","Tired out":"😮‍💨","Draining":"😩"};
+  function renderPage7(){
+    var optsHtml = FEELINGS.map(function(f){
+      var sel = state.data.commute_feeling === f ? " sel" : "";
+      return '<div class="option'+sel+'" role="radio" aria-checked="'+(sel?"true":"false")+'" tabindex="0" data-feel="'+esc(f)+'">'+
+        '<span class="label"><span class="oicon">'+FEELING_ICONS[f]+'</span><span>'+esc(f)+'</span></span><span class="dot"></span></div>';
+    }).join("");
+    screenEl.innerHTML =
+      backBtn()+
+      '<h2 class="question">How does your daily commute feel to you?</h2>'+
+      '<div class="options" role="radiogroup" id="feelOptions" style="margin-top:14px;">'+optsHtml+'</div>'+
+      '<div class="spacer"></div>'+
+      insightHTML('A calmer commute means a better start to your day.','😌')+
+      '<div class="cta-area"><button type="button" class="btn" id="p7next">Next →</button></div>'+
+      '<div class="safe-bottom"></div>';
+
+    document.getElementById("backBtn").addEventListener("click", function(){ goto(6); });
+    document.querySelectorAll("#feelOptions .option").forEach(function(el){
+      var pick = function(){
+        state.data.commute_feeling = el.getAttribute("data-feel");
+        document.querySelectorAll("#feelOptions .option").forEach(function(o){
+          o.classList.remove("sel"); o.setAttribute("aria-checked","false");
+        });
+        el.classList.add("sel"); el.setAttribute("aria-checked","true");
+      };
+      el.addEventListener("click", pick);
+      el.addEventListener("keydown", function(e){ if (e.key==="Enter"||e.key===" "){ e.preventDefault(); pick(); } });
+    });
+    document.getElementById("p7next").addEventListener("click", function(){
+      if (!state.data.commute_feeling){ alertInline("feelOptions","Please choose an option to continue."); return; }
+      goto(8);
+    });
+  }
+
+  /* ---------- PAGE 8: shared-cab pitch ---------- */
+  function renderPage8(){
+    var yesSel = state.data.shared_cab_interest === "yes" ? " sel" : "";
+    var noSel = state.data.shared_cab_interest === "no" ? " sel" : "";
+    screenEl.innerHTML =
+      backBtn()+
+      '<h2 class="question" style="margin-top:10px; margin-bottom:16px;">Imagine your usual commute&hellip; without the usual hassle.</h2>'+
+      '<p class="pitch-line">No crowded metro. No changing lines. No waiting for an auto.</p>'+
+      '<p class="pitch-line">Just a cab, students from your college, and a fare split between you.</p>'+
+      '<p class="pitch-strong">Cab comfort. Metro-like price.</p>'+
+      '<p class="pitch-q">Interested in sharing a cab every day?</p>'+
+      '<div class="options" role="radiogroup" id="interestOptions">'+
+        '<div class="option'+yesSel+'" role="radio" aria-checked="'+(yesSel?"true":"false")+'" tabindex="0" data-interest="yes">'+
+          '<span>🟢 Yes, I&rsquo;d love this</span><span class="dot"></span></div>'+
+        '<div class="option'+noSel+'" role="radio" aria-checked="'+(noSel?"true":"false")+'" tabindex="0" data-interest="no">'+
+          '<span>⚪ Maybe / Not right now</span><span class="dot"></span></div>'+
+      '</div>'+
+      '<div class="spacer"></div>'+
+      '<div class="cta-area"><button type="button" class="btn" id="p8next">Next →</button></div>'+
+      '<div class="safe-bottom"></div>';
+
+    document.getElementById("backBtn").addEventListener("click", function(){ goto(7); });
+    document.querySelectorAll("#interestOptions .option").forEach(function(el){
+      var pick = function(){
+        state.data.shared_cab_interest = el.getAttribute("data-interest");
+        document.querySelectorAll("#interestOptions .option").forEach(function(o){
+          o.classList.remove("sel"); o.setAttribute("aria-checked","false");
+        });
+        el.classList.add("sel"); el.setAttribute("aria-checked","true");
+      };
+      el.addEventListener("click", pick);
+      el.addEventListener("keydown", function(e){ if (e.key==="Enter"||e.key===" "){ e.preventDefault(); pick(); } });
+    });
+    document.getElementById("p8next").addEventListener("click", function(){
+      if (!state.data.shared_cab_interest){ alertInline("interestOptions","Please choose an option to continue."); return; }
+      submitAndShowPage9();
+    });
+  }
+
+  /* ---------- submission ---------- */
+  function submitAndShowPage9(){
+    if (!state.submitted){
+      state.submitted = true;
+      persistSubmission();
+    }
+    goto(9);
+    launchConfetti();
+  }
+
+  function persistSubmission(){
+    if (!dbNS) return;
+    try{
+      var id = "sub_" + Date.now() + "_" + Math.random().toString(36).slice(2,8);
+      dbNS.doc("submissions/"+id).set(Object.assign({}, state.data, {
+        submittedAt: new Date().toISOString()
+      })).catch(function(){ /* best-effort */ });
+    }catch(e){ /* best-effort, never block the user */ }
+  }
+
+  /* ---------- PAGE 9: final confirmation ---------- */
+  function renderPage9(){
+    var d = state.data;
+    screenEl.innerHTML =
+      '<div class="confetti" id="confettiHost"></div>'+
+      '<div class="celebrate">'+
+        '<span class="dot d1"></span><span class="dot d2"></span><span class="dot d3"></span><span class="dot d4"></span>'+
+        '<span class="bar b1"></span><span class="bar b2"></span>'+
+        '<span class="core">🚕</span>'+
+      '</div>'+
+      '<h1 class="confirm-title">🎉 You&rsquo;re in!</h1>'+
+      '<p class="confirm-sub">We&rsquo;ve got your commute details.</p>'+
+      '<div class="panel">'+
+        '<div class="panel-title">Your details</div>'+
+        '<div class="detail-row"><span>Name</span><b>'+esc(d.full_name)+'</b></div>'+
+        '<div class="detail-row"><span>Starting from</span><b>'+esc(d.nearest_metro_station)+'</b></div>'+
+        '<div class="detail-row"><span>College</span><b>'+esc(d.college)+'</b></div>'+
+        '<div class="panel-divider"></div>'+
+        '<div class="commute-route">'+esc(d.nearest_metro_station)+' → College</div>'+
+        '<div class="commute-tags">'+
+          '<span class="commute-tag">'+esc(d.travel_mode)+'</span>'+
+          '<span class="commute-tag">'+esc(d.daily_one_way_travel_time)+' min/day</span>'+
+          '<span class="commute-tag">₹'+esc(d.daily_travel_spend)+'/day</span>'+
+        '</div>'+
+      '</div>'+
+      '<p class="memorable">Your next ride might not be one you take alone.</p>'+
+      '<p class="next-line-1">We look for students from your area and college travelling the same route.</p>'+
+      '<p class="next-line-2">Once we find your match, we&rsquo;ll WhatsApp you.</p>'+
+      '<p class="thanks">Thanks for helping us make everyday travel easier — without the hassle. ❤️</p>'+
+      '<div class="safe-bottom"></div>';
+  }
+
+  function launchConfetti(){
+    if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    var host = document.getElementById("confettiHost");
+    if (!host) return;
+    var emojis = ["🚕","✨","🎉","💚"];
+    for (var i=0;i<14;i++){
+      (function(i){
+        var s = document.createElement("span");
+        s.textContent = emojis[i % emojis.length];
+        s.style.left = (Math.random()*90+2) + "%";
+        s.style.animationDelay = (Math.random()*0.4) + "s";
+        s.style.fontSize = (13 + Math.random()*10) + "px";
+        host.appendChild(s);
+      })(i);
+    }
+  }
+
+
+  /* =====================================================================
+     TRACKING LAYER — added per PLAYBOOK.md. Additive only: nothing above
+     this comment was rewritten. It wraps render()/persistSubmission() and
+     injects a logo + (optional) CTA nodes at runtime.
+
+     STEP 0 INVENTORY (the answers every placeholder below was filled from)
+     ---------------------------------------------------------------------
+     1. Screens .... 9, routed by state.step + goto()/render(). Resume =
+                     restore state.step and jump straight there.
+     2. Identity ... full_name + phone_number (required), college
+                     (required), email_optional.
+     3. Complete ... reaching step 9 (page 8's interest answer submits).
+     4. Repeatable . NONE. Every answer is a single value (radios + text
+                     inputs), so there is no long-format detail tab — the
+                     playbook's 2.3 "Brands tab" pattern does not apply.
+     5. Outbound ... NONE on the page today. Page 9 promises "we'll
+                     WhatsApp you" but ships no link. CTA injection below
+                     is therefore CONFIG-GATED: leave the link constants
+                     empty and the page renders exactly as it does now.
+     6. App link ... none supplied; APP_SMART_LINK left empty. If PicaPool
+                     has an Instally/Branch link, paste it in — do not
+                     hand-roll UA sniffing, DEVICE is only for analytics.
+     7. Incentive .. none exists yet, so the referral code is generated and
+                     tracked INTERNALLY with no promise printed on screen.
+     ===================================================================== */
+
+  /* ---- links this page cares about (empty = feature stays off) ---- */
+  var PRIMARY_GROUP_LINK = '';   // e.g. 'https://chat.whatsapp.com/XXXX'
+  var APP_SMART_LINK     = '';   // e.g. 'https://picapool.com/app'
+  var ENABLE_INVITE_CTA  = false; // keep false until a real referral reward exists
+
+  /* ---- backend: paste the Apps Script /exec URL here after Step 4 ---- */
+  var API_BASE = 'https://script.google.com/macros/s/AKfycbw9gAGPW1_JME4eRlNw1_mGQyxyIS3G5Qd2BbcOmnMQ8YE5a_--7veKsp3N1H1XEg1y6g/exec';
+
+  /* Which build of this file is live. Rides along on every submission as
+     `clientBuild`, so the Sheet itself answers "did the redeploy happen".
+     Bump on every meaningful change to this file. */
+  var BUILD = '2026-09-10-b';
+
+  /* ?debug=1 pins a readout to the screen: build, session id, and the
+     result of every beacon as it fires. It is the ONLY way to see whether
+     the page is even trying to talk to the backend — sendBeacon reports
+     nothing and deliberately survives the tab closing. */
+  var DEBUG = (function(){
+    try{ return new URLSearchParams(window.location.search).has('debug'); }
+    catch(e){ return false; }
+  })();
+
+  /* Reserved slugs that act as trackable REDIRECT shortlinks rather than
+     page-entry tags — picapool.com/wa logs a click and bounces straight to
+     the group without ever drawing the form. */
+  var REDIRECT_SLUGS = {};
+  if (PRIMARY_GROUP_LINK) REDIRECT_SLUGS['wa'] = { dest: PRIMARY_GROUP_LINK, type: 'group' };
+  if (APP_SMART_LINK)     REDIRECT_SLUGS['app'] = { dest: APP_SMART_LINK, type: 'app_download' };
+
+  /* ---- session, slug, device, referral ---- */
+  var STORAGE_KEY = 'pp_commute_state_v1';
+  var SESSION_KEY = 'pp_commute_session_v1';
+
+  function newSessionId(){
+    return 's_' + Date.now().toString(36) + Math.random().toString(36).slice(2,10);
+  }
+
+  /* The session id lives in localStorage and deliberately NEVER rotates —
+     that's what makes "come back tomorrow, resume on the same screen" work,
+     and it's why the backend UPSERTS on sessionId rather than appending.
+     ?new=1 / ?fresh=1 wipes it for testing or a shared/demo device. */
+  function isFreshRequest(){
+    try{
+      var q = new URLSearchParams(window.location.search);
+      return q.has('new') || q.has('fresh');
+    }catch(e){ return false; }
+  }
+  function getSessionId(){
+    try{
+      if (isFreshRequest()){
+        localStorage.removeItem(STORAGE_KEY);
+        var fresh = newSessionId();
+        localStorage.setItem(SESSION_KEY, fresh);
+        return fresh;
+      }
+      var id = localStorage.getItem(SESSION_KEY);
+      if (!id){ id = newSessionId(); localStorage.setItem(SESSION_KEY, id); }
+      return id;
+    }catch(e){ return newSessionId(); }
+  }
+  var SESSION_ID = getSessionId();
+
+  function makeCode(len){
+    var chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I — avoids misreads
+    var out = '';
+    for (var i=0;i<len;i++) out += chars[Math.floor(Math.random()*chars.length)];
+    return out;
+  }
+
+  function getUrlSlug(){
+    var path = window.location.pathname.replace(/^\/+|\/+$/g, '');
+    var parts = path.split('/').filter(Boolean);
+    var last = parts.length ? parts[parts.length - 1] : '';
+    return /\.html?$/i.test(last) ? '' : last;
+  }
+  function getUrlParam(name){
+    try{ return new URLSearchParams(window.location.search).get(name) || ''; }catch(e){ return ''; }
+  }
+  var urlSlug = getUrlSlug();
+  var entrySlug = urlSlug && !REDIRECT_SLUGS[urlSlug.toLowerCase()]
+    ? urlSlug
+    : (getUrlParam('s') || getUrlParam('slug') || 'direct');
+  var incomingRef = getUrlParam('ref') || getUrlParam('r') || '';
+
+  function detectDevice(){
+    var ua = navigator.userAgent || '';
+    if (/iPhone|iPad|iPod/i.test(ua)) return 'ios';
+    if (/Android/i.test(ua)) return 'android';
+    return 'desktop';
+  }
+  var DEVICE = detectDevice();
+
+  /* ---- debug overlay ---- */
+  var debugBox = null;
+  var debugLines = [];
+  function debugLog(msg){
+    if (!DEBUG) return;
+    debugLines.push(new Date().toLocaleTimeString() + '  ' + msg);
+    while (debugLines.length > 14) debugLines.shift();
+    try{
+      if (!debugBox){
+        debugBox = document.createElement('div');
+        debugBox.setAttribute('style',
+          'position:fixed;left:0;right:0;bottom:0;z-index:99999;max-height:45vh;overflow:auto;' +
+          'background:#0B2E2C;color:#8CE0B4;font:11px/1.45 ui-monospace,Menlo,monospace;' +
+          'padding:8px 10px;white-space:pre-wrap;word-break:break-all;border-top:2px solid #FF7A33');
+        document.body.appendChild(debugBox);
+      }
+      debugBox.textContent =
+        'build ' + BUILD + '\nsession ' + SESSION_ID + '\nslug ' + entrySlug +
+        '\napi ' + API_BASE.slice(0, 62) + '…\n\n' + debugLines.join('\n');
+    }catch(e){}
+  }
+
+  /* ---- the beacon: reliable fire-and-forget POST ----
+     fetch() alone silently drops requests the instant a tab closes or
+     navigates away — and a lot of taps happen right before someone
+     leaves. sendBeacon is the browser's guarantee that the request is
+     still attempted after the page is gone. */
+  function beacon(payload){
+    if (!API_BASE || API_BASE.indexOf('REPLACE_WITH') === 0){ debugLog('no API_BASE set'); return; }
+    var body = JSON.stringify(payload);
+    try{
+      if (navigator.sendBeacon){
+        var blob = new Blob([body], { type: 'text/plain;charset=utf-8' });
+        var ok = navigator.sendBeacon(API_BASE, blob);
+        debugLog((ok ? 'beacon ok  ' : 'beacon REFUSED ') + payload.action + ' ' + body.length + 'b');
+        if (ok) return;
+      } else {
+        debugLog('no sendBeacon, using fetch');
+      }
+    }catch(e){ debugLog('beacon threw: ' + e.message); }
+    try{
+      debugLog('fetch fallback ' + payload.action);
+      fetch(API_BASE, {
+        method: 'POST', mode: 'no-cors', keepalive: true,
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: body
+      }).catch(function(){});
+    }catch(e){}
+  }
+
+  function trackSlugEvent(slug, kind, extra){
+    var p = {
+      action: 'track', slug: slug, kind: kind,
+      sessionId: SESSION_ID, device: DEVICE, ts: Date.now(), ua: navigator.userAgent || ''
+    };
+    if (extra) for (var k in extra) if (Object.prototype.hasOwnProperty.call(extra, k)) p[k] = extra[k];
+    beacon(p);
+  }
+
+  /* ---- state extras (added onto the existing `state` object) ---- */
+  state.events = [];
+  state.clicks = { group: 0, app_download: 0, referral_share: 0 };
+  state.myRefCode = null;
+  state.maxStep = state.step || 1;
+
+  function logEvent(screenId, action){
+    state.events.push({ t: Date.now(), screen: screenId, action: action || 'view' });
+    if (state.events.length > 300) state.events = state.events.slice(-300); // cap, don't grow unbounded
+  }
+
+  /* records a click on a specific outbound link against THIS user's own
+     row — not just an aggregate counter — so opening their row shows
+     exactly what they did and when. */
+  function logClick(type){
+    state.clicks[type] = Date.now();
+    logEvent(currentId(), 'click_' + type);
+    flushProgress();
+  }
+
+  function currentId(){ return 'step' + state.step; }
+
+  /* ---- local persistence / resume ---- */
+  function saveLocal(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({
+        step: state.step, data: state.data, submitted: state.submitted,
+        events: state.events, clicks: state.clicks,
+        myRefCode: state.myRefCode, maxStep: state.maxStep
+      }));
+    }catch(e){}
+  }
+  function restoreLocal(){
+    try{
+      var raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+      var saved = JSON.parse(raw);
+      if (!saved || typeof saved !== 'object') return false;
+      if (saved.data) for (var k in state.data){
+        if (Object.prototype.hasOwnProperty.call(saved.data, k)) state.data[k] = saved.data[k];
+      }
+      if (saved.step >= 1 && saved.step <= TOTAL_STEPS) state.step = saved.step;
+      if (saved.submitted) state.submitted = true;
+      if (Array.isArray(saved.events)) state.events = saved.events;
+      if (saved.clicks) state.clicks = saved.clicks;
+      if (saved.myRefCode) state.myRefCode = saved.myRefCode;
+      state.maxStep = Math.max(saved.maxStep || 1, state.step);
+      return true;
+    }catch(e){ return false; }
+  }
+
+  /* ---- the submission payload ---- */
+  function buildSubmissionPayload(status){ // status: 'partial' | 'complete'
+    var d = state.data;
+    return {
+      action: 'submit',
+      sessionId: SESSION_ID, ts: Date.now(), status: status,
+      slug: entrySlug, referredBy: incomingRef, myRefCode: state.myRefCode || '',
+      fullName: d.full_name || '', college: d.college || '',
+      phone: d.phone_number || '', email: d.email_optional || '',
+      metroStation: d.nearest_metro_station || '', travelMode: d.travel_mode || '',
+      dailySpend: d.daily_travel_spend || '', oneWayMinutes: d.daily_one_way_travel_time || '',
+      commuteFeeling: d.commute_feeling || '', sharedCabInterest: d.shared_cab_interest || '',
+      currentScreen: currentId(), screensReached: state.maxStep, totalScreens: TOTAL_STEPS,
+      groupClickedAt: state.clicks.group || '',
+      appDownloadClickedAt: state.clicks.app_download || '',
+      referralShareClickedAt: state.clicks.referral_share || '',
+      device: DEVICE, userAgent: navigator.userAgent || '',
+      eventsJSON: JSON.stringify(state.events.slice(-100)),
+      clientBuild: BUILD
+    };
+  }
+
+  /* ---- debounced sync + unload-safe flush ---- */
+  var syncTimer = null;
+  function flushProgress(){
+    if (syncTimer){ clearTimeout(syncTimer); syncTimer = null; }
+    beacon(buildSubmissionPayload(state.step === TOTAL_STEPS ? 'complete' : 'partial'));
+  }
+  function syncProgress(){
+    saveLocal();
+    if (syncTimer) clearTimeout(syncTimer);
+    syncTimer = setTimeout(flushProgress, 700); // debounced so rapid taps don't spam the backend
+  }
+
+  /* The debounce is fine while someone's actively tapping, but if they
+     close the tab / switch apps before it fires, that setTimeout never
+     runs and the latest state is lost. Force an immediate flush the
+     moment the tab is hidden — this is also exactly what makes "tap a
+     WhatsApp link, come back, land on the same screen" work. */
+  window.addEventListener('pagehide', flushProgress);
+  document.addEventListener('visibilitychange', function(){
+    if (document.visibilityState === 'hidden') flushProgress();
+  });
+
+  /* ---- referral code: tracked internally, no promise on the page ---- */
+  function ensureReferralCode(){
+    if (state.myRefCode) return state.myRefCode;
+    state.myRefCode = makeCode(6);
+    beacon({ action: 'createLink', slug: state.myRefCode, type: 'referral',
+      owner: state.data.full_name || state.data.phone_number || 'anonymous',
+      sessionId: SESSION_ID, ts: Date.now() });
+    saveLocal();
+    return state.myRefCode;
+  }
+  function referralUrl(){ return window.location.origin + '/' + ensureReferralCode(); }
+
+  /* ---- redirect shortlinks resolve before anything renders ---- */
+  var REDIRECTING = false;
+  (function resolveRedirectSlug(){
+    var target = REDIRECT_SLUGS[urlSlug.toLowerCase()];
+    if (target){
+      REDIRECTING = true;
+      trackSlugEvent(urlSlug.toLowerCase(), 'click', { redirectType: target.type, dest: target.dest });
+      window.location.replace(target.dest);
+    }
+  })();
+
+  /* ---- brand mark: the real logo file, inlined so nothing external loads ---- */
+  var LOGO_DATA_URI = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAOEAAADhCAMAAAAJbSJIAAAAmVBMVEX/////RQD/PAD/NwD/wrX/PwD/mHf/nIH/0sP/po//fWD/tqH/NgD/0MP/va3/j27/SQD/7eb/+fb/xbP/sZn/9vL/uqT/q5H/knL/6N7/28//4tn/van/wa3/mn7/1sj/Xyv/ZjT/UxT/iGX/gl//c0j/dlf/oYn/KgD/eVL/azz/Tg7/YSz/flX/y7r/rJb/WSH/XTP/ajl4FUxtAAAF2UlEQVR4nO2c7XraOBBGQdoJUMxiG0gwpEAMlK8sobn/i1uy2T7RyBLY4IxJ+56/LpaPNdLMCNJaDQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAcIror6J0vPcaF77XWMCwuQ50IdY/vPdarYvdSq/7EoZULwZ9896rpQreS7VhCEMYwhCGMIQhDGEIQxjCEIYwhCEMYQhDGMIQhjCEIQxhKGR4D0MY3rzhIwy/vOF3GMLw5g17MIQhDGEIQxjC8A/I+OKGpM4TnPp9aY7Pm+OJ9xb0tGqcZeI/W9lPzn98tTQGFO+A1VBgwAdVpWFXYEBmKH3WBsNSYIbSv2SHYSn0KzWU2EuZ4YvAgNUa/v5zKG54JzDgH2Yong9//6qNGbaHd+UwnHoNpbsnng8XQY5eKA9rFosr01C6xyduWLQ39qFZLDYMQ2oKGE5Nw7l5ZV6aIZupO9NwJG24Ma8Mi55JeA3ZTHVNw0TAcGQabmPjSqMsw4DNlBn8YSRgmJiGh4FxpV2WoWIzZZxi8PE+i8h8lp35Tpu6JMPUjIzBzDB8iu3H+QQGqfkwZjwlJe009GSOF+2MK5uaAPGzmRDZrncoR5HXgiPzikQNxdaF1a/9U46hZoVLz1jdWqLw5mmPFuaVdjkLkdiG+WIYBv7/nqFMzDqRfppLv5yFSFs2nBkYSiId1mr7wHwcNua2DEXNIt/cSuuhiGAtMdMeXzP9MsKUv7SxcUtayhjWQvNxWO0dZR73AkH+VdWLYahaQoZsyyR2qYTSVPPdxAz8QKKzeIPFIt/exlcvRJ7uaxFb9BI1238abFSWL2qLaycx4D2uGaTk/yKyZOIZmymWvZIrDa0pZGWSUL5/Y2JqWMdfd9cpKr7UOubdSOK/UHpnai5EemX1/iC9ZimqOR/J7A3t6f1MYlZiqz27uL9iEinle8mY2a/kDHmY2nm4cXna11N+K5Z8lMQZzS9GbJ60laa2l85iYGX0xLwoGaRHnljS56XysWe9bCmqhTVKl9WHcjvpG/csEgPrJHp0kaJaWgmd5V2ZQ6gPBszB3iBqzXpxRfVqK7BORai9/4D/Xisz/IiKKqqtfcjEj+6UXDJ8x+oilN18j9Ni243e2IKJ2cJkEqUALbYSM3Fai5YFFElNMgMsWRQI1jO/sGqXzD5Yixs6b6SqMPulGX+DIj/6sGmznc61mTfTXLmfgk32+KXDI0DLHNBY8A6jrvfZf7Kis6FKauf4TjDhm7FufL6OA+s1U91RVSXz+klHUmnL0dZG/O3JfF3hoGsppq5QGk/CwLceVTB7ceXx2Kr7RL7bdhFZjRIdnGVH9LjRgbItSQX1edP5RUtsbcPZXUyMjrWTUOqprAb74c+61krREaWUVrvtynesFG+s2NhVFKNvTDKK/g4nGj2uhvPFYt6dPPTG/iIzk0i1zFG+m/jVCj4Krz3wS55twWwxIElidxFE1zU5+9C6ocqUc8J0MvtkML/ikVp2HUQz2abJgVXavL312aXHDdHGvhlVUI9maGQUiRoXTeP9LlMdKKlz/JM4vqvQrkrsDKPXzKuqU1Wp3qKbLbBJL4u9/aTr6JlF/gYoF/Ps2z/WLN/yL8do4ipf1zcjeFR0tUnHeezlWo/ThasFIX0jIfqO+wdfFKST6WnJwbT17KzMKXR0Y1XSzpTW/8cqzYbeDT/+3j2Q54Pp1Pepqmi6n/T4rOu/fZ/prH0f0j8rT/RZoldPr6v9hr5TjkqOZc4T37lnpLAhhRK/V7+InvOQtKhhsL2BSs3HoOvYF4sZku5X3EycYTrLhGoRQ1KbG9xiOPGDXT/nNyT1JPHXBldjl2B5DSk43N92gH4QNepGJ5vPkILZY4UnToWJ2x/rMYfhsbDZVHnedBmdefguec6QlDqsbjhBnGDQW4SBpuCEIZEODnfug+GvwWDUn4d+wyBd9L/m7DFi7wYyGH3hyQMAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA4Db5F/XvcDuykfcsAAAAAElFTkSuQmCC';
+  (function injectLogo(){
+    try{
+      var word = brandmarkEl && brandmarkEl.querySelector('.word');
+      if (!word || brandmarkEl.querySelector('.brand-logo')) return;
+      var img = document.createElement('img');
+      img.className = 'brand-logo';
+      img.src = LOGO_DATA_URI;
+      img.alt = 'PicaPool';
+      img.setAttribute('style','width:22px;height:22px;object-fit:contain;margin-right:8px;vertical-align:-5px;');
+      /* inside .word, not beside it — .brandmark is justify-content:
+         space-between, so a third child would push the layout apart. */
+      word.insertAdjacentElement('afterbegin', img);
+    }catch(e){}
+  })();
+
+  /* ---- CTA injection (page 9 only, and only for links that exist) ----
+     Step 0 found no outbound links on this page. With the config
+     constants empty this injects nothing and the page is byte-identical
+     in behaviour to before; paste a link in and the button appears,
+     tracked. Nothing here promises a reward that doesn't exist yet. */
+  function injectFinalCTAs(){
+    var host = document.getElementById('screen');
+    if (!host || document.getElementById('ppCtaRow')) return;
+    var buttons = [];
+    if (PRIMARY_GROUP_LINK){
+      buttons.push('<a class="btn" href="' + PRIMARY_GROUP_LINK + '" target="_blank" rel="noopener" ' +
+        'data-track-cta="group" style="display:block;text-align:center;text-decoration:none;">' +
+        'Join the commute group →</a>');
+    }
+    if (APP_SMART_LINK){
+      buttons.push('<a class="btn" href="' + APP_SMART_LINK + '" target="_blank" rel="noopener" ' +
+        'data-track-cta="app_download" style="display:block;text-align:center;text-decoration:none;">' +
+        'Get the PicaPool app →</a>');
+    }
+    if (ENABLE_INVITE_CTA){
+      buttons.push('<button type="button" class="btn" data-track-cta="referral_share" ' +
+        'id="ppInviteBtn">Invite a friend on your route</button>');
+    }
+    if (!buttons.length) return;
+    var row = document.createElement('div');
+    row.id = 'ppCtaRow';
+    row.className = 'cta-area';
+    row.setAttribute('style','display:grid;gap:10px;');
+    row.innerHTML = buttons.join('');
+    var safe = host.querySelector('.safe-bottom');
+    if (safe) host.insertBefore(row, safe); else host.appendChild(row);
+
+    var invite = document.getElementById('ppInviteBtn');
+    if (invite){
+      invite.addEventListener('click', function(){
+        var url = referralUrl();
+        var text = 'I just signed up to share a daily cab to college with PicaPool. ' + url;
+        try{
+          if (navigator.share){ navigator.share({ text: text }).catch(function(){}); return; }
+        }catch(e){}
+        try{ window.open('https://wa.me/?text=' + encodeURIComponent(text), '_blank', 'noopener'); }catch(e){}
+      });
+    }
+  }
+
+  function bindCtas(){
+    document.querySelectorAll('[data-track-cta]').forEach(function(el){
+      if (el.getAttribute('data-cta-bound')) return;
+      el.setAttribute('data-cta-bound','1');
+      el.addEventListener('click', function(){
+        var key = el.getAttribute('data-track-cta');
+        trackSlugEvent(key, 'click', { redirectType: key });
+        logClick(key);
+      });
+    });
+  }
+
+  /* ---- wrap render(): one hook that catches the first paint AND every
+     goto(), so no existing call site had to change ---- */
+  var __ppRender = render;
+  render = function(){
+    if (REDIRECTING) return; // page is on its way to a shortlink destination
+    __ppRender();
+    state.maxStep = Math.max(state.maxStep || 1, state.step);
+    logEvent(currentId(), 'view');
+    if (state.step === TOTAL_STEPS){
+      ensureReferralCode();
+      injectFinalCTAs();
+    }
+    bindCtas();
+    syncProgress();
+  };
+
+  /* completion should not wait on the 700ms debounce */
+  var __ppPersist = persistSubmission;
+  persistSubmission = function(){
+    try{ __ppPersist(); }catch(e){}
+    logEvent(currentId(), 'submit');
+    saveLocal();
+    flushProgress();
+  };
+
+  /* ---- initial visit log + resume ---- */
+  var RESUMED = restoreLocal();
+  trackSlugEvent(entrySlug, 'visit', { resumed: RESUMED, ref: incomingRef, entryStep: state.step });
+  /* state.step now holds the restored screen, so the existing render()
+     call below lands the returning user exactly where they left off. */
+
+  render();
+})();
+</script>
+</head>
+<body></body>
+</html>
