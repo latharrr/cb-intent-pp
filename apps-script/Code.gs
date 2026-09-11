@@ -401,7 +401,11 @@ const STEP_LABELS = [
   'Intro / pitch', 'Your details', 'Metro station', 'Travel mode', 'Daily spend',
   'Travel time', 'Commute feeling', 'Shared-cab pitch', 'Confirmation'
 ];
-const TRAVEL_MODES = ['Walking', 'Metro', 'Rapid (Rapido)', 'Personal vehicle', 'Auto/Cab', 'Other'];
+const TRAVEL_MODES = ['Walking', 'Metro', 'Rapido (bike taxi)', 'Personal vehicle', 'Auto/Cab', 'Other'];
+/* Labels the form used to write for the same mode. Rows already in the
+   sheet keep the old string, so the dashboard counts both and history
+   does not silently drop to zero when a label is reworded. */
+const TRAVEL_MODE_ALIASES = { 'Rapido (bike taxi)': ['Rapid (Rapido)'] };
 const FEELINGS = ['Relaxed', 'Manageable', 'Tired out', 'Draining'];
 
 function buildDashboard() {
@@ -552,7 +556,8 @@ function buildDashboard() {
   section('WHAT THEY TAKE TO COLLEGE (multi-select — picks overlap)');
   note('Counted off the TravelModes tab, one row per person per mode, so these add up to more than the number of people.');
   TRAVEL_MODES.forEach(m => {
-    barRow(m, 'COUNTIF(TravelModes!$H$2:$H,"' + m + '")', started, INK, '0');
+    const labels = [m].concat(TRAVEL_MODE_ALIASES[m] || []);
+    barRow(m, labels.map(l => 'COUNTIF(TravelModes!$H$2:$H,"' + l + '")').join('+'), started, INK, '0');
   });
   blank();
   section('MOST COMMON MODE COMBINATIONS');

@@ -62,8 +62,8 @@ It boots the real `index.html`, walks all 9 steps, and asserts the payload
 of every beacon: slug/`?ref` capture, one stable session id, the partial →
 complete transition, resume-where-you-left-off, `?new=1` wiping the
 session, CTA injection and click stamping once a link is configured,
-`pagehide` forcing a flush, auto-advance timing on every screen that has
-it, the sound and haptic calls, and the whole page still working in a
+`pagehide` forcing a flush, every screen refusing to advance until Next is
+pressed, the sound and haptic calls, and the whole page still working in a
 webview with no `sendBeacon`, no `fetch`, no `localStorage` and an
 `AudioContext` that refuses to construct. Section 11 asserts the
 MSDF-HRC-024 spec item by item — the removed stations, the page 4 question
@@ -130,13 +130,42 @@ wiped and rebuilt wholesale. Never hand-edit it.
 `explodeModes()` in `Code.gs` is the twin of `buildSubmissionPayload()` in
 `index.html`. **Renaming an option in one means renaming it in the other**,
 or the two desync quietly and the tab starts reporting labels the form no
-longer offers.
+longer offers. That happened once already: `Rapid (Rapido)` became
+`Rapido (bike taxi)` on 11 Sep 2026, so rows written before that date carry
+the old string. `TRAVEL_MODE_ALIASES` in `Code.gs` maps the old label onto
+the new bar so the dashboard keeps counting the history instead of dropping
+it to zero. Any future rename belongs in that map too.
 
 The Dashboard counts each mode off that tab rather than matching column M,
 because M holds combinations. Bars there sum to more than the number of
 people, which is why the section is labelled as overlapping, and a
 **Most common mode combinations** table sits under it — the one that
 actually matters for pooling people into a shared cab.
+
+## Fitting one screen, without a scroll
+
+Every step is meant to be answerable without scrolling: question, answer
+and the Next button all on screen at once. Three things hold that up, and
+all three are easy to undo by accident.
+
+1. **`dvh`, not `vh`.** On a phone `100vh` is the height the page *would*
+   have with the URL bar hidden, so a `100vh` frame always overflows by the
+   height of the browser chrome. `.stage`, `.phone` and `body` each set
+   `100vh` first and `100dvh` second — old browsers keep the fallback.
+2. **Viewport-relative rhythm.** `--v-lg` / `--v-md` / `--v-sm` in `:root`
+   are `clamp(min, Nvh, max)`. On a tall phone they resolve to the original
+   fixed values; on a short one they shrink instead of pushing the CTA
+   below the fold. Reach for one of those tokens rather than a new hard
+   pixel margin. The option rows, the inputs and the page 1 illustration
+   are capped the same way.
+3. **`.spacer` may not have a height of its own.** It is `flex:1 1 auto;
+   min-height:0` — a spring that pushes the CTA down when there *is* room
+   and collapses to nothing when there is not. Its old `min-height:24px`
+   was the empty mid-page band that shoved Next off the bottom.
+
+`.cta-area` is `position:sticky; bottom:0` as the backstop. On a screen
+that genuinely cannot fit — small phone, keyboard open — Next stays pinned
+to the bottom edge over a short fade instead of hiding below the fold.
 
 ## Deploy the site
 
@@ -179,37 +208,27 @@ for someone resuming straight onto step 9: there is no user gesture on that
 load, so the browser would block the audio and the buzz would arrive out of
 nowhere.
 
-## Auto-advance
+## Auto-advance — off
 
-On the screens where one tap *is* the whole answer, the form moves itself
-on — no Next press:
+Every screen waits for a deliberate press of Next. Picking an option or a
+chip selects it and nothing else; the screen never moves on by itself.
+(Turned off on 11 Sep 2026 on request — it was surprising people mid-tap.)
 
-| Screen | Trigger | Delay |
-|---|---|---|
-| 7 · commute feeling | option tap | 320ms |
-| 8 · shared-cab interest | option tap | 380ms (then submits) |
-| 5 · daily spend | **chip** tap | 900ms |
-| 6 · travel time | **chip** tap | 900ms |
-
-**Page 4 is deliberately not in that table.** It went multi-select, and
-auto-advancing on the first tap would make picking a second mode
-impossible. It uses Next like pages 2, 3, 5 and 6.
-
-The delay is what makes the selected state visible before the screen
-changes. Chips get 900ms on purpose: tapping one reveals the "₹120/day is
-₹3,120+ every month" insight, and moving on before that lands throws away
-the point of the screen. Typing a number by hand still needs Next — only a
-chip tap is treated as a final answer. Tapping a second option inside the
-delay cancels the first advance, and Next keeps working normally
-throughout.
+The wiring is still there, gated by two constants, so it is one edit to
+bring back:
 
 ```js
-var AUTO_ADVANCE       = true;
-var AUTO_ADVANCE_CHIPS = true;  // false = chips select only, never advance
+var AUTO_ADVANCE       = false;
+var AUTO_ADVANCE_CHIPS = false;  // true = a chip tap is also a final answer
 ```
 
-Advancing works by pressing the page's own Next button programmatically, so
-it reuses that button's existing validation rather than duplicating it.
+With them on, screens 7 and 8 advance 320/380ms after an option tap and
+screens 5 and 6 advance 900ms after a **chip** tap (long enough for the
+"₹120/day is ₹3,120+ every month" insight to land). Page 4 is deliberately
+never in that set: it is multi-select, so advancing on the first tap would
+make a second mode impossible to pick. Advancing works by pressing the
+page's own Next button programmatically, so it reuses that button's
+existing validation rather than duplicating it.
 
 ---
 

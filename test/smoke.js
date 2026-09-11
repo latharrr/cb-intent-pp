@@ -201,8 +201,8 @@ console.log('\n8. locked-down webview: no sendBeacon, no fetch, no localStorage'
 }
 
 
-/* ---------- 9. tap feedback + auto-advance ---------- */
-console.log('\n9. sound, vibration, and auto-advance');
+/* ---------- 9. tap feedback + MANUAL advance ---------- */
+console.log('\n9. sound, vibration, and manual (never automatic) advance');
 {
   const vc = new VirtualConsole(); const errs = [];
   vc.on('jsdomError', e => errs.push(String(e.message)));
@@ -235,7 +235,7 @@ console.log('\n9. sound, vibration, and auto-advance');
   const dd = ww.document;
   const t = (id, v) => { const e = dd.getElementById(id); e.value = v; e.dispatchEvent(new ww.Event('input', { bubbles: true })); };
 
-  // walk to the first auto-advance screen the ordinary way
+  // walk through the form the only way there is: pressing Next
   dd.getElementById('p1cta').click();
   ok(notes.length > 0, 'first tap constructs the AudioContext and plays a note');
   ok(resumed > 0, 'suspended context is resumed inside the gesture (iOS needs this)');
@@ -245,8 +245,7 @@ console.log('\n9. sound, vibration, and auto-advance');
   t('in_metro', 'AIIMS'); dd.getElementById('p3next').click();
   ok(!!dd.getElementById('modeOptions'), 'on step 4 (travel modes, multi-select)');
 
-  /* page 4 is the one screen that must NOT auto-advance: advancing on the
-     first tap would make a second mode impossible to pick. */
+  /* no screen advances on its own any more */
   dd.querySelector('#modeOptions .option[data-mode="Walking"]').click();
   await wait(700);
   ok(!!dd.getElementById('modeOptions'), 'multi-select does NOT auto-advance');
@@ -255,37 +254,43 @@ console.log('\n9. sound, vibration, and auto-advance');
   dd.getElementById('p4next').click();
   ok(!!dd.getElementById('in_spend'), 'Next moves on once modes are picked');
 
-  // ---- from here on, NOTHING presses Next ----
+  // ---- from here on, every screen is answered and then waited on ----
 
   const beforeChip = notes.length;
   dd.querySelector('#spendChips .chip[data-v="120"]').click();
   ok(notes.length > beforeChip, 'chip tap makes a sound');
   ok(dd.getElementById('spendInsight').textContent.indexOf('3,120') > -1,
-     'the monthly-spend insight is on screen while we wait');
-  await wait(400);
-  ok(!!dd.getElementById('in_spend'), 'chips wait ~900ms so that insight actually lands');
-  await wait(800);
-  ok(!!dd.getElementById('in_time'), 'auto-advanced to step 6');
+     'the monthly-spend insight is on screen');
+  await wait(1200);
+  ok(!!dd.getElementById('in_spend'), 'a spend chip does NOT advance on its own');
+  dd.getElementById('p5next').click();
+  ok(!!dd.getElementById('in_time'), 'Next moves on to step 6');
 
   dd.querySelector('#timeChips .chip[data-v="30"]').click();
   await wait(1200);
-  ok(!!dd.getElementById('feelOptions'), 'auto-advanced to step 7');
+  ok(!!dd.getElementById('in_time'), 'a time chip does NOT advance on its own');
+  dd.getElementById('p6next').click();
+  ok(!!dd.getElementById('feelOptions'), 'Next moves on to step 7');
 
   dd.querySelector('#feelOptions .option[data-feel="Relaxed"]').click();
   await wait(600);
-  ok(!!dd.getElementById('interestOptions'), 'auto-advanced to step 8');
+  ok(!!dd.getElementById('feelOptions'), 'picking a feeling does NOT advance on its own');
+  dd.getElementById('p7next').click();
+  ok(!!dd.getElementById('interestOptions'), 'Next moves on to step 8');
 
   const beforeFinish = notes.length;
   dd.querySelector('#interestOptions .option[data-interest="yes"]').click();
   await wait(700);
-  ok(dd.querySelector('.confirm-title') !== null, 'auto-advanced to step 9 and submitted');
+  ok(!!dd.getElementById('interestOptions'), 'picking interest does NOT advance on its own');
+  dd.getElementById('p8next').click();
+  ok(dd.querySelector('.confirm-title') !== null, 'Next submits and lands on step 9');
   ok(notes.length - beforeFinish >= 3, 'arrival plays a 3-note flourish (' + (notes.length - beforeFinish) + ' notes)');
   ok(Array.isArray(vibes[vibes.length - 1]), 'finish uses a vibration pattern, not a single buzz');
 
   const done = bs.filter(b => b.action === 'submit' && b.status === 'complete').pop();
   ok(!!done, 'the completed row still went out');
   ok(done && done.travelMode === 'Walking, Metro' && done.dailySpend === 120 && done.oneWayMinutes === 30,
-     'every auto-advanced answer was captured');
+     'every answer was captured');
   ok(done && done.commuteFeeling === 'Relaxed' && done.sharedCabInterest === 'yes',
      'feeling + interest captured');
 
@@ -345,7 +350,9 @@ console.log('\n10. webview that refuses AudioContext and has no vibrate');
   dd.getElementById('p4next').click();
   dd.querySelector('#spendChips .chip[data-v="60"]').click();
   await wait(1100);
-  ok(!!dd.getElementById('in_time'), 'auto-advance still works with no audio at all');
+  ok(!!dd.getElementById('in_spend'), 'still no auto-advance with no audio at all');
+  dd.getElementById('p5next').click();
+  ok(!!dd.getElementById('in_time'), 'Next still works with no audio at all');
   ok(errs.length === 0, 'still no uncaught errors');
 }
 
@@ -384,7 +391,7 @@ console.log('\n11. refinement spec compliance (MSDF-HRC-024, pages 1-5)');
      'page 4: instructional subheading added');
   const opts = [...dd.querySelectorAll('#modeOptions .option')];
   ok(opts.map(o => o.getAttribute('data-mode')).join('|') ===
-     'Walking|Metro|Rapid (Rapido)|Personal vehicle|Auto/Cab|Other',
+     'Walking|Metro|Rapido (bike taxi)|Personal vehicle|Auto/Cab|Other',
      'page 4: options in spec order — ' + opts.map(o => o.getAttribute('data-mode')).join(', '));
   ok(opts.every(o => o.getAttribute('role') === 'checkbox'),
      'page 4: role=checkbox, not radio');
@@ -441,6 +448,38 @@ console.log('\n11. refinement spec compliance (MSDF-HRC-024, pages 1-5)');
   ok(done && done.travelModeCount === 2, 'count matches');
   ok(done && done.oneWayMinutes === 180, '180-minute answer accepted');
   ok(errs.length === 0, 'no uncaught errors' + (errs.length ? ' — ' + errs[0] : ''));
+}
+
+/* ---------- 12. the layout rules that keep a screen scroll-free ----------
+   jsdom does no layout, so these are read off the stylesheet. They are the
+   three things that, undone, silently push Next below the fold again. */
+console.log('\n12. one-screen layout invariants');
+{
+  const css = HTML.slice(HTML.indexOf('<style>'), HTML.indexOf('</style>'));
+  const block = sel => {
+    const i = css.indexOf(sel + '{');
+    return i === -1 ? '' : css.slice(i, css.indexOf('}', i));
+  };
+
+  ok(/\.spacer\{flex:1 1 auto; min-height:0;\}/.test(css),
+     '.spacer is a pure spring — no min-height of its own');
+  ok(block('.cta-area').indexOf('position:sticky') > -1 && block('.cta-area').indexOf('bottom:0') > -1,
+     'the Next button is pinned to the bottom of the frame');
+  // 'body' alone would match the `html,body{background:...}` rule above it
+  [['\n  body', 'body'], ['.stage', '.stage'], ['.phone', '.phone']].forEach(([sel, name]) => {
+    ok(block(sel).indexOf('100dvh') > -1, name + ' sizes to the dynamic viewport, not 100vh');
+    ok(block(sel).indexOf('100vh') > -1, name + ' still carries the 100vh fallback first');
+  });
+  ok(/--v-lg:clamp\(/.test(css) && /--v-md:clamp\(/.test(css) && /--v-sm:clamp\(/.test(css),
+     'the vertical rhythm tokens are vh-clamped');
+  ok(block('.hero-illustration svg').indexOf('58vh') > -1,
+     'page 1 illustration is capped by viewport height, not just width');
+  ok(block('.screen').indexOf('padding:var(--v-md) 22px 0 22px') > -1,
+     '.screen has no fixed bottom padding under the sticky CTA');
+
+  // page 1 must not re-introduce an inline override of the CTA padding
+  ok(HTML.indexOf('class="cta-area" style="padding-top:0') === -1,
+     'no page overrides the CTA padding inline');
 }
 
 }

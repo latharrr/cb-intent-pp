@@ -19,6 +19,13 @@
     --green:#218836;
     --muted:rgba(9,63,60,0.62);
     --border:rgba(9,63,60,0.10);
+    /* Vertical rhythm is viewport-relative so a whole screen — question,
+       answer AND the Next button — fits a phone without scrolling. On a
+       tall phone these land on the old fixed values; on a short one they
+       shrink instead of pushing the CTA below the fold. */
+    --v-lg:clamp(10px,2.2vh,22px);
+    --v-md:clamp(9px,1.7vh,18px);
+    --v-sm:clamp(6px,1.2vh,12px);
   }
 
   *{box-sizing:border-box;}
@@ -31,6 +38,7 @@
     font-family:'Inter',system-ui,-apple-system,sans-serif;
     -webkit-font-smoothing:antialiased;
     min-height:100vh;
+    min-height:100dvh;
   }
 
   @media (prefers-reduced-motion: reduce){
@@ -41,6 +49,7 @@
 
   .stage{
     min-height:100vh;
+    min-height:100dvh; /* 100vh on mobile is the URL-bar-less height, so it overflows */
     width:100%;
     display:flex;
     justify-content:center;
@@ -54,6 +63,9 @@
     width:100%;
     max-width:480px;
     min-height:100vh;
+    min-height:100dvh;
+    height:100dvh;
+    overflow:hidden;
     background:var(--bg);
     display:flex;
     flex-direction:column;
@@ -65,6 +77,7 @@
     .phone{
       min-height:min(860px, 92vh);
       height:min(860px, 92vh);
+      height:min(860px, 92dvh);
       border-radius:28px;
       box-shadow: 0 1px 3px rgba(9,63,60,0.08), 0 30px 60px -24px rgba(9,63,60,0.35);
       border:1px solid var(--border);
@@ -77,7 +90,7 @@
     display:flex;
     align-items:center;
     justify-content:space-between;
-    padding:18px 22px 4px 22px;
+    padding:var(--v-md) 22px 4px 22px;
   }
   .brandmark .word{
     font:700 17px/1 'Baloo 2',sans-serif;
@@ -94,7 +107,7 @@
   .progress-wrap{
     display:flex;
     gap:5px;
-    padding:14px 22px 0 22px;
+    padding:var(--v-sm) 22px 0 22px;
     flex-shrink:0;
   }
   .seg{
@@ -124,7 +137,7 @@
   }
 
   .screen{
-    padding:20px 22px 28px 22px;
+    padding:var(--v-md) 22px 0 22px;
     display:flex;
     flex-direction:column;
     flex:1 0 auto;
@@ -143,21 +156,24 @@
     border:none;
     color:var(--muted);
     font:600 13px/1 'Inter',sans-serif;
-    padding:6px 2px 16px 2px;
+    padding:6px 2px var(--v-sm) 2px;
     cursor:pointer;
   }
   .back-btn:hover{color:var(--teal);}
   .back-btn:focus-visible{outline:2px solid var(--orange); outline-offset:2px; border-radius:4px;}
 
-  .spacer{flex:1; min-height:24px;}
+  /* Purely a "push the CTA down when there IS room" spring. It must never
+     add height of its own — that empty band in the middle is exactly what
+     used to shove the Next button off the bottom of a phone screen. */
+  .spacer{flex:1 1 auto; min-height:0;}
 
   /* Typography roles */
   .hero{
     font:800 clamp(29px,8.4vw,36px)/1.18 'Baloo 2',sans-serif;
     color:var(--teal);
     text-wrap:balance;
-    margin-top:16px;
-    margin-bottom:12px;
+    margin-top:var(--v-sm);
+    margin-bottom:var(--v-sm);
   }
   .question{
     font:800 clamp(23px,6.8vw,27px)/1.15 'Baloo 2',sans-serif;
@@ -168,7 +184,7 @@
   .helper{
     font:500 14px/1.45 'Inter',sans-serif;
     color:var(--muted);
-    margin-bottom:22px;
+    margin-bottom:var(--v-lg);
   }
   .mechanism{
     font:500 16.5px/1.5 'Inter',sans-serif;
@@ -183,16 +199,21 @@
     display:flex;
     justify-content:center;
     align-items:center;
-    margin:6px 0 6px 0;
+    margin:var(--v-sm) 0;
+    flex:0 1 auto;
+    min-height:0;
   }
-  .hero-illustration svg{width:100%; height:auto; max-width:400px; display:block;}
+  /* capped by height as well as width: the drawing is 430x250, so bounding
+     the width at 58vh keeps it under ~34vh tall on any phone and page 1
+     stops being the screen that forces a scroll. */
+  .hero-illustration svg{width:100%; height:auto; max-width:min(400px, 58vh); display:block;}
 
   /* Page 1 trust — compact soft-teal reassurance module */
   .trust-block{
     background:var(--soft-teal);
     border-radius:18px;
-    padding:16px 18px;
-    margin-bottom:18px;
+    padding:var(--v-md) 18px;
+    margin-bottom:var(--v-sm);
     display:flex;
     gap:14px;
     align-items:flex-start;
@@ -227,7 +248,7 @@
   .trust-sub{
     font:500 13.5px/1.4 'Inter',sans-serif;
     color:var(--muted);
-    margin-bottom:12px;
+    margin-bottom:var(--v-sm);
   }
   .verify-row{display:flex; flex-direction:column; gap:6px;}
   .verify-item{
@@ -245,18 +266,18 @@
     gap:8px;
     font:600 13.5px/1.42 'Inter',sans-serif;
     color:var(--teal);
-    margin:22px 0 4px 0;
+    margin:var(--v-lg) 0 4px 0;
   }
   .insight .ic{font-size:15px; line-height:1.42; flex-shrink:0;}
   .insight b{color:var(--orange); font-weight:700;}
 
   /* fields */
-  .field{margin-bottom:18px;}
+  .field{margin-bottom:var(--v-md);}
   .field label{
     display:block;
     font:600 13px/1 'Inter',sans-serif;
     color:var(--teal);
-    margin-bottom:8px;
+    margin-bottom:6px;
   }
   .field label .opt{
     color:var(--muted);
@@ -266,7 +287,7 @@
   }
   .field input{
     width:100%;
-    min-height:50px;
+    min-height:clamp(44px,6vh,50px);
     border-radius:14px;
     border:1.5px solid var(--border);
     background:var(--white);
@@ -323,7 +344,7 @@
     color:var(--white);
   }
 
-  .priv-block{margin:6px 0 18px 0; padding:14px 16px; background:var(--soft-teal); border-radius:14px;}
+  .priv-block{margin:6px 0 var(--v-md) 0; padding:var(--v-sm) 16px; background:var(--soft-teal); border-radius:14px;}
   .priv-title{
     font:700 15.5px/1.3 'Baloo 2',sans-serif;
     color:var(--teal);
@@ -338,7 +359,7 @@
   .options{
     display:flex;
     flex-direction:column;
-    gap:10px;
+    gap:clamp(7px,1.2vh,10px);
     margin-bottom:6px;
   }
   .option{
@@ -349,8 +370,8 @@
     background:var(--white);
     border:1.5px solid var(--border);
     border-radius:16px;
-    padding:14px 16px;
-    min-height:52px;
+    padding:clamp(10px,1.5vh,14px) 16px;
+    min-height:clamp(46px,6.2vh,52px);
     cursor:pointer;
     font:600 15.5px/1.3 'Inter',sans-serif;
     color:var(--teal);
@@ -394,10 +415,19 @@
   .option.sel .dot::after{transform:scale(1);}
   .option:focus-visible{outline:2px solid var(--orange); outline-offset:2px;}
 
-  /* CTA */
+  /* CTA — pinned to the bottom of the frame.
+     The spacer above still places it naturally when the screen has room;
+     sticky only matters on the rare screen (small phone, keyboard open,
+     long answer list) that genuinely cannot fit, and there it keeps Next
+     reachable without a scroll instead of hiding it below the fold. */
   .cta-area{
     margin-top:auto;
-    padding-top:26px;
+    padding-top:var(--v-lg);
+    padding-bottom:calc(10px + env(safe-area-inset-bottom, 0px));
+    position:sticky;
+    bottom:0;
+    z-index:3;
+    background:linear-gradient(to bottom, rgba(251,248,242,0) 0%, var(--bg) 34%, var(--bg) 100%);
   }
   .btn{
     width:100%;
@@ -418,23 +448,27 @@
   .btn:active{transform:translateY(1px) scale(0.99);}
   .btn:focus-visible{outline:2px solid var(--teal); outline-offset:3px;}
 
-  .safe-bottom{height:10px;}
+  /* the bottom breathing room now lives inside the sticky .cta-area, so
+     this stays in the markup as a no-op anchor (CTA injection targets it) */
+  .safe-bottom{height:0;}
+  /* ...except the confirmation screen, which has no CTA of its own */
+  .screen:not(:has(.cta-area)){padding-bottom:var(--v-lg);}
 
   /* Page 8: shared-cab pitch */
   .pitch-line{
     font:500 15.5px/1.5 'Inter',sans-serif;
     color:var(--teal);
-    margin-bottom:18px;
+    margin-bottom:var(--v-md);
   }
   .pitch-strong{
     font:800 21px/1.25 'Baloo 2',sans-serif;
     color:var(--orange);
-    margin:2px 0 26px 0;
+    margin:2px 0 var(--v-lg) 0;
   }
   .pitch-q{
     font:700 19px/1.25 'Baloo 2',sans-serif;
     color:var(--teal);
-    margin:0 0 14px 0;
+    margin:0 0 var(--v-sm) 0;
   }
 
   /* Page 9: confirmation */
@@ -769,7 +803,7 @@
           '</div>'+
         '</div>'+
       '</div>'+
-      '<div class="cta-area" style="padding-top:0;"><button type="button" class="btn" id="p1cta">Tell us where you come from →</button></div>'+
+      '<div class="cta-area"><button type="button" class="btn" id="p1cta">Tell us where you come from →</button></div>'+
       '<div class="safe-bottom"></div>';
     document.getElementById("p1cta").addEventListener("click", function(){ goto(2); });
   }
@@ -861,11 +895,11 @@
   }
 
   /* ---------- PAGE 4: travel mode ---------- */
-  var TRAVEL_MODES = ["Walking","Metro","Rapid (Rapido)","Personal vehicle","Auto/Cab","Other"];
+  var TRAVEL_MODES = ["Walking","Metro","Rapido (bike taxi)","Personal vehicle","Auto/Cab","Other"];
   var TRAVEL_MODE_ICONS = {
     "Walking":"🚶",
     "Metro":"🚇",
-    "Rapid (Rapido)":"🏍️",
+    "Rapido (bike taxi)":"🏍️",
     "Personal vehicle":"🚗",
     "Auto/Cab":"🚕",
     "Other":"✦"
@@ -1624,11 +1658,15 @@
     else feedback('advance');
   }, true);
 
-  /* ---- auto-advance: on the screens where one tap IS the whole answer ----
+  /* ---- auto-advance: OFF ----
+     Turned off on 11 Sep 2026 — every screen waits for a deliberate press
+     of Next, on request. The wiring below is left in place and gated by
+     these two flags (same pattern as the CTA constants above): flip either
+     back to true and the behaviour returns, with no other edit.
      Advancing by pressing the page's own Next button reuses that button's
      existing validation and state handling rather than duplicating it. */
-  var AUTO_ADVANCE       = true;
-  var AUTO_ADVANCE_CHIPS = true;
+  var AUTO_ADVANCE       = false;
+  var AUTO_ADVANCE_CHIPS = false;
   var AUTO_ADVANCE_MAP = [
     // page 4 is deliberately absent: it is multi-select now, so advancing on
     // the first tap would make it impossible to pick a second mode
@@ -1643,15 +1681,17 @@
 
   var autoAdvanceTimer = null;
   function bindAutoAdvance(){
-    if (!AUTO_ADVANCE) return;
     AUTO_ADVANCE_MAP.forEach(function(rule){
-      if (rule.chips && !AUTO_ADVANCE_CHIPS) return;
+      // the listeners are still attached when the flags are off, because the
+      // keydown one also carries the select sound for keyboard users
+      var armed = AUTO_ADVANCE && (!rule.chips || AUTO_ADVANCE_CHIPS);
       document.querySelectorAll(rule.pick).forEach(function(el){
         if (el.getAttribute('data-auto-bound')) return;
         el.setAttribute('data-auto-bound','1');
         // bound after the page's own pick handler, so the answer is already
         // in state by the time this fires
         var go = function(){
+          if (!armed) return;
           if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
           autoAdvanceTimer = setTimeout(function(){
             var btn = document.getElementById(rule.next);
