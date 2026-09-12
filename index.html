@@ -854,6 +854,8 @@
       if (!name){ fieldErr("full_name","This field is required."); ok=false; }
       if (!college){ fieldErr("college","This field is required."); ok=false; }
       var phoneDigits = phone.replace(/\D/g,"");
+      if (phoneDigits.length === 12 && phoneDigits.slice(0,2) === "91") phoneDigits = phoneDigits.slice(2);
+      else if (phoneDigits.length === 11 && phoneDigits.charAt(0) === "0") phoneDigits = phoneDigits.slice(1);
       if (!phone){ fieldErr("phone_number","This field is required."); ok=false; }
       else if (phoneDigits.length !== 10){ fieldErr("phone_number","Enter a valid 10-digit phone number."); ok=false; }
       if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){ fieldErr("email_optional","Enter a valid email address."); ok=false; }
