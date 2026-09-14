@@ -1,7 +1,7 @@
 const fs = require('fs');
 const { JSDOM, VirtualConsole } = require('jsdom');
 
-/* Headless run of index.html: renders the form, walks all 9 steps, and
+/* Headless run of index.html: renders the form, walks all 5 steps, and
    asserts what every beacon carries. Needs jsdom:
      npm i --no-save jsdom && node test/smoke.js                         */
 const path = require('path');
@@ -38,7 +38,7 @@ ok(errors.length === 0, 'no uncaught errors' + (errors.length ? ' — ' + errors
 ok(d.querySelector('#screen').innerHTML.indexOf('Imagine getting') > -1, 'screen 1 rendered');
 ok(!!d.querySelector('.brandmark img.brand-logo'), 'logo injected inside .word');
 ok(d.querySelector('.brandmark').children.length === 2, '.brandmark still has 2 flex children (layout intact)');
-ok(d.querySelectorAll('.progress-wrap .seg').length === 9, '9 progress segments');
+ok(d.querySelectorAll('.progress-wrap .seg').length === 5, '5 progress segments');
 
 const visit = beacons.find(b => b.action === 'track' && b.kind === 'visit');
 ok(!!visit, 'visit beacon fired');
@@ -49,9 +49,9 @@ ok(!!first, 'submit beacon fired on first paint');
 ok(first && first.status === 'partial' && first.currentScreen === 'step1', 'first submit = partial/step1');
 ok(first && first.referredBy === 'XY7ZQ2', 'referredBy on the submission row');
 ok(first && first.clientBuild === BUILD, 'clientBuild stamped: ' + (first && first.clientBuild));
-ok(first && first.totalScreens === 9, 'totalScreens = 9');
+ok(first && first.totalScreens === 5, 'totalScreens = 5');
 
-/* ---------- 2. walk all 9 steps ---------- */
+/* ---------- 2. walk all 5 steps ---------- */
 console.log('\n2. walk the form to completion');
 const click = id => { const e = d.getElementById(id); if (!e) throw new Error('missing #' + id); e.click(); };
 const type = (id, v) => {
@@ -67,10 +67,6 @@ type('in_metro', 'Rajiv Chowk'); click('p3next');
 d.querySelector('#modeOptions .option[data-mode="Walking"]').click();
 d.querySelector('#modeOptions .option[data-mode="Metro"]').click();
 click('p4next');
-type('in_spend', '120'); click('p5next');
-type('in_time', '150'); click('p6next');
-d.querySelector('#feelOptions .option[data-feel="Draining"]').click(); click('p7next');
-d.querySelector('#interestOptions .option[data-interest="yes"]').click(); click('p8next');
 
 ok(d.querySelector('#screen').innerHTML.indexOf("You&rsquo;re in!") > -1 ||
    d.querySelector('.confirm-title') !== null, 'reached the confirmation screen');
@@ -78,18 +74,18 @@ ok(errors.length === 0, 'still no uncaught errors' + (errors.length ? ' — ' + 
 
 const done = beacons.filter(b => b.action === 'submit' && b.status === 'complete').pop();
 ok(!!done, 'complete submission fired');
-ok(done && done.currentScreen === 'step9' && done.screensReached === 9, 'step9 / screensReached 9');
+ok(done && done.currentScreen === 'step5' && done.screensReached === 5, 'step5 / screensReached 5');
 ok(done && done.fullName === 'Ananya Sharma' && done.phone === '9876543210', 'identity fields mapped');
 ok(done && done.college === 'SRCC' && done.email === 'ananya@example.com', 'college + email mapped');
 ok(done && done.metroStation === 'Rajiv Chowk', 'metroStation mapped');
 ok(done && done.travelMode === 'Walking, Metro', 'travelMode summary cell: ' + (done && done.travelMode));
 ok(done && done.travelModesJSON === '["Walking","Metro"]', 'lossless blob for the detail tab: ' + (done && done.travelModesJSON));
 ok(done && done.travelModeCount === 2, 'travelModeCount = 2');
-ok(done && done.dailySpend === 120 && done.oneWayMinutes === 150, 'spend/time mapped as numbers');
-ok(done && done.commuteFeeling === 'Draining' && done.sharedCabInterest === 'yes', 'feeling + interest mapped');
+ok(done && done.dailySpend === '' && done.oneWayMinutes === '', 'spend/time no longer collected (pages removed)');
+ok(done && done.commuteFeeling === '' && done.sharedCabInterest === '', 'feeling/interest no longer collected (pages removed)');
 ok(done && /^[A-Z2-9]{6}$/.test(done.myRefCode), 'referral code generated: ' + (done && done.myRefCode));
 ok(beacons.some(b => b.action === 'createLink' && b.type === 'referral'), 'createLink logged for the referral code');
-ok(done && JSON.parse(done.eventsJSON).length > 8, 'event trail captured (' + (done ? JSON.parse(done.eventsJSON).length : 0) + ' events)');
+ok(done && JSON.parse(done.eventsJSON).length >= 5, 'event trail captured (' + (done ? JSON.parse(done.eventsJSON).length : 0) + ' events)');
 ok(!d.getElementById('ppCtaRow'), 'no CTA row injected while the link constants are empty');
 const sessionIds = new Set(beacons.filter(b => b.sessionId).map(b => b.sessionId));
 ok(sessionIds.size === 1, 'one stable sessionId across every beacon (' + sessionIds.size + ')');
@@ -103,10 +99,10 @@ for (let i = 0; i < w.localStorage.length; i++) {
 const r2 = boot('https://picapool.test/srcc', saved);
 await wait(900);
 ok(r2.errors.length === 0, 'no uncaught errors on resume');
-ok(r2.d.querySelector('.confirm-title') !== null, 'landed back on step 9, not step 1');
+ok(r2.d.querySelector('.confirm-title') !== null, 'landed back on step 5, not step 1');
 const rv = r2.beacons.find(b => b.action === 'track' && b.kind === 'visit');
 ok(rv && rv.resumed === true, 'visit beacon reports resumed:true');
-ok(rv && rv.entryStep === 9, 'resumed at step 9');
+ok(rv && rv.entryStep === 5, 'resumed at step 5');
 const rs = r2.beacons.find(b => b.action === 'submit');
 ok(rs && rs.sessionId === done.sessionId, 'same sessionId reused, so the backend upserts');
 ok(rs && rs.status === 'complete', 'resumed row stays complete');
@@ -153,12 +149,8 @@ ok(patched !== HTML, 'config constant is patchable');
   t2('in_name', 'B'); t2('in_college', 'C'); t2('in_phone', '9876543210'); dd.getElementById('p2next').click();
   t2('in_metro', 'AIIMS'); dd.getElementById('p3next').click();
   dd.querySelector('#modeOptions .option[data-mode="Auto/Cab"]').click(); dd.getElementById('p4next').click();
-  t2('in_spend', '60'); dd.getElementById('p5next').click();
-  t2('in_time', '30'); dd.getElementById('p6next').click();
-  dd.querySelector('#feelOptions .option[data-feel="Relaxed"]').click(); dd.getElementById('p7next').click();
-  dd.querySelector('#interestOptions .option[data-interest="yes"]').click(); dd.getElementById('p8next').click();
   const row = dd.getElementById('ppCtaRow');
-  ok(!!row, 'CTA row injected on step 9');
+  ok(!!row, 'CTA row injected on the final step');
   const a = row && row.querySelector('[data-track-cta="group"]');
   ok(!!a && a.getAttribute('href') === 'https://chat.whatsapp.com/TESTGROUP', 'group button points at the link');
   ok(!!row && !row.querySelector('[data-track-cta="app_download"]'), 'no app button (that link is still empty)');
@@ -249,54 +241,29 @@ console.log('\n9. sound, vibration, and manual (never automatic) advance');
   dd.querySelector('#modeOptions .option[data-mode="Walking"]').click();
   await wait(700);
   ok(!!dd.getElementById('modeOptions'), 'multi-select does NOT auto-advance');
-  dd.querySelector('#modeOptions .option[data-mode="Metro"]').click();
-  ok(dd.querySelectorAll('#modeOptions .option.sel').length === 2, 'both taps stay selected');
-  dd.getElementById('p4next').click();
-  ok(!!dd.getElementById('in_spend'), 'Next moves on once modes are picked');
-
-  // ---- from here on, every screen is answered and then waited on ----
-
   const beforeChip = notes.length;
-  dd.querySelector('#spendChips .chip[data-v="120"]').click();
-  ok(notes.length > beforeChip, 'chip tap makes a sound');
-  ok(dd.getElementById('spendInsight').textContent.indexOf('3,120') > -1,
-     'the monthly-spend insight is on screen');
-  await wait(1200);
-  ok(!!dd.getElementById('in_spend'), 'a spend chip does NOT advance on its own');
-  dd.getElementById('p5next').click();
-  ok(!!dd.getElementById('in_time'), 'Next moves on to step 6');
+  dd.querySelector('#modeOptions .option[data-mode="Metro"]').click();
+  ok(notes.length > beforeChip, 'selecting a mode makes a sound');
+  ok(dd.querySelectorAll('#modeOptions .option.sel').length === 2, 'both taps stay selected');
 
-  dd.querySelector('#timeChips .chip[data-v="30"]').click();
-  await wait(1200);
-  ok(!!dd.getElementById('in_time'), 'a time chip does NOT advance on its own');
-  dd.getElementById('p6next').click();
-  ok(!!dd.getElementById('feelOptions'), 'Next moves on to step 7');
-
-  dd.querySelector('#feelOptions .option[data-feel="Relaxed"]').click();
-  await wait(600);
-  ok(!!dd.getElementById('feelOptions'), 'picking a feeling does NOT advance on its own');
-  dd.getElementById('p7next').click();
-  ok(!!dd.getElementById('interestOptions'), 'Next moves on to step 8');
+  // ---- Next submits directly: pages 5-8 (cost/time/mood/interest) removed ----
 
   const beforeFinish = notes.length;
-  dd.querySelector('#interestOptions .option[data-interest="yes"]').click();
-  await wait(700);
-  ok(!!dd.getElementById('interestOptions'), 'picking interest does NOT advance on its own');
-  dd.getElementById('p8next').click();
-  ok(dd.querySelector('.confirm-title') !== null, 'Next submits and lands on step 9');
+  dd.getElementById('p4next').click();
+  ok(dd.querySelector('.confirm-title') !== null, 'Next submits and lands on step 5');
   ok(notes.length - beforeFinish >= 3, 'arrival plays a 3-note flourish (' + (notes.length - beforeFinish) + ' notes)');
   ok(Array.isArray(vibes[vibes.length - 1]), 'finish uses a vibration pattern, not a single buzz');
 
   const done = bs.filter(b => b.action === 'submit' && b.status === 'complete').pop();
   ok(!!done, 'the completed row still went out');
-  ok(done && done.travelMode === 'Walking, Metro' && done.dailySpend === 120 && done.oneWayMinutes === 30,
-     'every answer was captured');
-  ok(done && done.commuteFeeling === 'Relaxed' && done.sharedCabInterest === 'yes',
-     'feeling + interest captured');
+  ok(done && done.travelMode === 'Walking, Metro', 'every answer was captured');
+  ok(done && done.dailySpend === '' && done.oneWayMinutes === '' &&
+     done.commuteFeeling === '' && done.sharedCabInterest === '',
+     'removed pages leave those fields empty');
 
   ok(errs.length === 0, 'no uncaught errors' + (errs.length ? ' — ' + errs[0] : ''));
 
-  /* a returning visitor resuming straight onto step 9 must NOT get the
+  /* a returning visitor resuming straight onto step 5 must NOT get the
      flourish: there is no user gesture there, so the browser would block
      the audio anyway and the haptic would fire out of nowhere. */
   const saved9 = {};
@@ -319,7 +286,7 @@ console.log('\n9. sound, vibration, and manual (never automatic) advance');
   };
   for (const k in saved9) w2.localStorage.setItem(k, saved9[k]);
   w2.eval(HTML.slice(HTML.indexOf('<script>') + 8, HTML.indexOf('</script>')));
-  ok(w2.document.querySelector('.confirm-title') !== null, 'resumed onto step 9');
+  ok(w2.document.querySelector('.confirm-title') !== null, 'resumed onto step 5');
   ok(notes2.length === 0, 'no flourish on resume (' + notes2.length + ' notes played)');
   ok(vibes2.length === 0, 'no haptic on resume');
   ok(errs2.length === 0, 'no uncaught errors on resume');
@@ -347,12 +314,10 @@ console.log('\n10. webview that refuses AudioContext and has no vibrate');
   dd.getElementById('p2next').click();
   t('in_metro', 'AIIMS'); dd.getElementById('p3next').click();
   dd.querySelector('#modeOptions .option[data-mode="Walking"]').click();
-  dd.getElementById('p4next').click();
-  dd.querySelector('#spendChips .chip[data-v="60"]').click();
   await wait(1100);
-  ok(!!dd.getElementById('in_spend'), 'still no auto-advance with no audio at all');
-  dd.getElementById('p5next').click();
-  ok(!!dd.getElementById('in_time'), 'Next still works with no audio at all');
+  ok(!!dd.getElementById('modeOptions'), 'still no auto-advance with no audio at all');
+  dd.getElementById('p4next').click();
+  ok(dd.querySelector('.confirm-title') !== null, 'Next still works with no audio at all');
   ok(errs.length === 0, 'still no uncaught errors');
 }
 
@@ -419,34 +384,22 @@ console.log('\n11. refinement spec compliance (MSDF-HRC-024, pages 1-5)');
 
   opts[4].click(); opts[0].click(); // Auto/Cab then Walking — deliberately out of order
   dd.getElementById('p4next').click();
-  ok(!!dd.getElementById('in_spend'), 'page 4: advances once something is picked');
 
-  t('in_spend', '150'); dd.getElementById('p5next').click();
-
-  // --- Page 5/6: time chips now run 30 to 180 in 30-minute steps
-  const chips = [...dd.querySelectorAll('#timeChips .chip')].map(c => Number(c.getAttribute('data-v')));
-  ok(chips.join(',') === '30,60,90,120,150,180', 'time chips are 30-180 in 30s — ' + chips.join(', '));
-  ok(Math.max(...chips) === 180, 'max option is 3 hours (180 minutes)');
-
-  t('in_time', '180'); dd.getElementById('p6next').click();
-  dd.querySelector('#feelOptions .option[data-feel="Draining"]').click();
-  dd.getElementById('p7next').click();
-  dd.querySelector('#interestOptions .option[data-interest="yes"]').click();
-  dd.getElementById('p8next').click();
-
-  // --- Page 9 has to survive several modes
+  // --- Page 5 has to survive several modes; cost/time/mood/interest pages
+  // (formerly 5-8) are gone, so Next on page 4 submits straight to it
   ok(dd.querySelector('.confirm-title') !== null, 'reached the confirmation screen');
   const tags = [...dd.querySelectorAll('.commute-tag')].map(x => x.textContent);
   ok(tags.indexOf('Walking') > -1 && tags.indexOf('Auto/Cab') > -1,
-     'page 9: one tag per selected mode — ' + tags.join(' / '));
-  ok(tags.indexOf('undefined') === -1, 'page 9: no "undefined" tag from the old single-value field');
+     'page 5: one tag per selected mode — ' + tags.join(' / '));
+  ok(tags.indexOf('undefined') === -1, 'page 5: no "undefined" tag from the old single-value field');
+  ok(!tags.some(x => /min\/day|₹/.test(x)), 'page 5: no time/cost tag left behind');
 
   const done = bs.filter(b => b.action === 'submit' && b.status === 'complete').pop();
   ok(done && done.travelMode === 'Walking, Auto/Cab',
      'summary cell is in canonical option order, not tap order — "' + (done && done.travelMode) + '"');
   ok(done && done.travelModesJSON === '["Walking","Auto/Cab"]', 'blob matches');
   ok(done && done.travelModeCount === 2, 'count matches');
-  ok(done && done.oneWayMinutes === 180, '180-minute answer accepted');
+  ok(done && done.oneWayMinutes === '' && done.dailySpend === '', 'time/cost no longer collected');
   ok(errs.length === 0, 'no uncaught errors' + (errs.length ? ' — ' + errs[0] : ''));
 }
 

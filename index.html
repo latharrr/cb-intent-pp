@@ -311,39 +311,6 @@
   }
   .field.err .errmsg{display:block;}
 
-  .prefix-input{position:relative;}
-  .prefix-input .prefix{
-    position:absolute;
-    left:16px; top:50%; transform:translateY(-50%);
-    font:600 16px 'Inter',sans-serif;
-    color:var(--teal);
-    pointer-events:none;
-  }
-  .prefix-input input{padding-left:32px;}
-
-  .chip-row{
-    display:flex;
-    gap:8px;
-    flex-wrap:wrap;
-    margin:10px 0 4px 0;
-  }
-  .chip{
-    background:var(--beige);
-    border:1px solid var(--border);
-    color:var(--teal);
-    font:600 13px/1 'Inter',sans-serif;
-    padding:9px 13px;
-    border-radius:999px;
-    cursor:pointer;
-    transition:background .15s ease, border-color .15s ease;
-  }
-  .chip:hover{border-color:var(--teal);}
-  .chip.sel{
-    background:var(--teal);
-    border-color:var(--teal);
-    color:var(--white);
-  }
-
   .priv-block{margin:6px 0 var(--v-md) 0; padding:var(--v-sm) 16px; background:var(--soft-teal); border-radius:14px;}
   .priv-title{
     font:700 15.5px/1.3 'Baloo 2',sans-serif;
@@ -454,24 +421,7 @@
   /* ...except the confirmation screen, which has no CTA of its own */
   .screen:not(:has(.cta-area)){padding-bottom:var(--v-lg);}
 
-  /* Page 8: shared-cab pitch */
-  .pitch-line{
-    font:500 15.5px/1.5 'Inter',sans-serif;
-    color:var(--teal);
-    margin-bottom:var(--v-md);
-  }
-  .pitch-strong{
-    font:800 21px/1.25 'Baloo 2',sans-serif;
-    color:var(--orange);
-    margin:2px 0 var(--v-lg) 0;
-  }
-  .pitch-q{
-    font:700 19px/1.25 'Baloo 2',sans-serif;
-    color:var(--teal);
-    margin:0 0 var(--v-sm) 0;
-  }
-
-  /* Page 9: confirmation */
+  /* Page 5: confirmation */
   .celebrate{
     position:relative;
     height:78px;
@@ -618,7 +568,7 @@
 
 <div class="stage">
   <div class="phone">
-    <div class="brandmark" id="brandmark" hidden><span class="word">Pica<b>Pool</b></span><span class="stepcount">1 of 9</span></div>
+    <div class="brandmark" id="brandmark" hidden><span class="word">Pica<b>Pool</b></span><span class="stepcount">1 of 5</span></div>
     <div class="progress-wrap" id="progressWrap" role="progressbar" aria-label="Form progress"></div>
     <div class="screen-outer" id="screenOuter">
       <div class="screen" id="screen"></div>
@@ -630,7 +580,7 @@
 (function(){
   "use strict";
 
-  var TOTAL_STEPS = 9;
+  var TOTAL_STEPS = 5;
   var METRO_STATIONS = [
     "Rithala","Rohini West","Rohini East","Pitampura","Kohat Enclave","Netaji Subhash Place",
     "Keshav Puram","Kanhaiya Nagar","Inderlok","Shastri Nagar","Tis Hazari","Pul Bangash",
@@ -739,10 +689,6 @@
     else if (state.step === 3) renderPage3();
     else if (state.step === 4) renderPage4();
     else if (state.step === 5) renderPage5();
-    else if (state.step === 6) renderPage6();
-    else if (state.step === 7) renderPage7();
-    else if (state.step === 8) renderPage8();
-    else if (state.step === 9) renderPage9();
   }
 
   /* ---------- PAGE 1: introduction / pitch ---------- */
@@ -947,200 +893,17 @@
         alertInline("modeOptions","Please select at least one option to continue.");
         return;
       }
-      goto(5);
-    });
-  }
-
-  /* ---------- PAGE 5: daily spend ---------- */
-  var SPEND_CHIPS = [60,80,100,120,150,200];
-  function renderPage5(){
-    screenEl.innerHTML =
-      backBtn()+
-      '<h2 class="question">How much do you spend on travel every day?</h2>'+
-      '<div class="field prefix-input" data-field="daily_travel_spend" style="margin-top:14px;">'+
-        '<label for="in_spend">Daily travel spend</label>'+
-        '<div style="position:relative;">'+
-          '<span class="prefix">₹</span>'+
-          '<input id="in_spend" type="text" inputmode="numeric" placeholder="e.g. 120" value="'+esc(state.data.daily_travel_spend)+'">'+
-        '</div>'+
-        '<div class="errmsg">This field is required.</div>'+
-      '</div>'+
-      '<div class="chip-row" id="spendChips">'+
-        SPEND_CHIPS.map(function(v){ return '<div class="chip" data-v="'+v+'">₹'+v+'</div>'; }).join("")+
-      '</div>'+
-      '<div class="spacer"></div>'+
-      '<div id="spendInsight"></div>'+
-      '<div class="cta-area"><button type="button" class="btn" id="p5next">Next →</button></div>'+
-      '<div class="safe-bottom"></div>';
-
-    document.getElementById("backBtn").addEventListener("click", function(){ goto(4); });
-    var input = document.getElementById("in_spend");
-
-    function updateInsight(){
-      var digits = input.value.replace(/[^\d.]/g,"");
-      if (digits !== input.value) input.value = digits;
-      var v = parseFloat(digits);
-      var box = document.getElementById("spendInsight");
-      if (!v || v <= 0){
-        box.innerHTML = "";
-        return;
-      }
-      var daily = Math.round(v);
-      var monthly = Math.round(v * 26);
-      box.innerHTML = insightHTML('₹'+daily+'/day is ₹<b>'+monthly.toLocaleString("en-IN")+'+</b> every month.', '💰');
-      document.querySelectorAll("#spendChips .chip").forEach(function(c){
-        c.classList.toggle("sel", parseFloat(c.getAttribute("data-v")) === v);
-      });
-    }
-    input.addEventListener("input", updateInsight);
-    document.querySelectorAll("#spendChips .chip").forEach(function(c){
-      c.addEventListener("click", function(){
-        input.value = c.getAttribute("data-v");
-        updateInsight();
-      });
-    });
-    updateInsight();
-
-    document.getElementById("p5next").addEventListener("click", function(){
-      clearErrs();
-      var v = input.value.trim();
-      if (!v || parseFloat(v) <= 0){ fieldErr("daily_travel_spend","This field is required."); return; }
-      state.data.daily_travel_spend = Math.round(parseFloat(v));
-      goto(6);
-    });
-  }
-
-  /* ---------- PAGE 6: travel time ---------- */
-  var TIME_CHIPS = [30,60,90,120,150,180];
-  function renderPage6(){
-    screenEl.innerHTML =
-      backBtn()+
-      '<h2 class="question">How much time does it take to travel daily?</h2>'+
-      '<p class="helper">One-way commute — from home to college.</p>'+
-      '<div class="field" data-field="daily_one_way_travel_time">'+
-        '<label for="in_time">One-way travel time (minutes)</label>'+
-        '<input id="in_time" type="text" inputmode="numeric" placeholder="e.g. 45" value="'+esc(state.data.daily_one_way_travel_time)+'">'+
-        '<div class="errmsg">This field is required.</div>'+
-      '</div>'+
-      '<div class="chip-row" id="timeChips">'+
-        TIME_CHIPS.map(function(v){ return '<div class="chip" data-v="'+v+'">'+v+' min</div>'; }).join("")+
-      '</div>'+
-      '<div class="spacer"></div>'+
-      insightHTML('Switching to a cab can save, on average, 1 hour a day on your commute.')+
-      '<div class="cta-area"><button type="button" class="btn" id="p6next">Next →</button></div>'+
-      '<div class="safe-bottom"></div>';
-
-    document.getElementById("backBtn").addEventListener("click", function(){ goto(5); });
-    var input = document.getElementById("in_time");
-
-    function syncChips(){
-      var digits = input.value.replace(/[^\d.]/g,"");
-      if (digits !== input.value) input.value = digits;
-      var v = parseFloat(digits);
-      document.querySelectorAll("#timeChips .chip").forEach(function(c){
-        c.classList.toggle("sel", parseFloat(c.getAttribute("data-v")) === v);
-      });
-    }
-    input.addEventListener("input", syncChips);
-    document.querySelectorAll("#timeChips .chip").forEach(function(c){
-      c.addEventListener("click", function(){
-        input.value = c.getAttribute("data-v");
-        syncChips();
-      });
-    });
-    syncChips();
-
-    document.getElementById("p6next").addEventListener("click", function(){
-      clearErrs();
-      var v = input.value.trim();
-      if (!v || parseFloat(v) <= 0){ fieldErr("daily_one_way_travel_time","This field is required."); return; }
-      state.data.daily_one_way_travel_time = Math.round(parseFloat(v));
-      goto(7);
-    });
-  }
-
-  /* ---------- PAGE 7: commute feeling ---------- */
-  var FEELINGS = ["Relaxed","Manageable","Tired out","Draining"];
-  var FEELING_ICONS = {"Relaxed":"😌","Manageable":"🙂","Tired out":"😮‍💨","Draining":"😩"};
-  function renderPage7(){
-    var optsHtml = FEELINGS.map(function(f){
-      var sel = state.data.commute_feeling === f ? " sel" : "";
-      return '<div class="option'+sel+'" role="radio" aria-checked="'+(sel?"true":"false")+'" tabindex="0" data-feel="'+esc(f)+'">'+
-        '<span class="label"><span class="oicon">'+FEELING_ICONS[f]+'</span><span>'+esc(f)+'</span></span><span class="dot"></span></div>';
-    }).join("");
-    screenEl.innerHTML =
-      backBtn()+
-      '<h2 class="question">How does your daily commute feel to you?</h2>'+
-      '<div class="options" role="radiogroup" id="feelOptions" style="margin-top:14px;">'+optsHtml+'</div>'+
-      '<div class="spacer"></div>'+
-      insightHTML('A calmer commute means a better start to your day.','😌')+
-      '<div class="cta-area"><button type="button" class="btn" id="p7next">Next →</button></div>'+
-      '<div class="safe-bottom"></div>';
-
-    document.getElementById("backBtn").addEventListener("click", function(){ goto(6); });
-    document.querySelectorAll("#feelOptions .option").forEach(function(el){
-      var pick = function(){
-        state.data.commute_feeling = el.getAttribute("data-feel");
-        document.querySelectorAll("#feelOptions .option").forEach(function(o){
-          o.classList.remove("sel"); o.setAttribute("aria-checked","false");
-        });
-        el.classList.add("sel"); el.setAttribute("aria-checked","true");
-      };
-      el.addEventListener("click", pick);
-      el.addEventListener("keydown", function(e){ if (e.key==="Enter"||e.key===" "){ e.preventDefault(); pick(); } });
-    });
-    document.getElementById("p7next").addEventListener("click", function(){
-      if (!state.data.commute_feeling){ alertInline("feelOptions","Please choose an option to continue."); return; }
-      goto(8);
-    });
-  }
-
-  /* ---------- PAGE 8: shared-cab pitch ---------- */
-  function renderPage8(){
-    var yesSel = state.data.shared_cab_interest === "yes" ? " sel" : "";
-    var noSel = state.data.shared_cab_interest === "no" ? " sel" : "";
-    screenEl.innerHTML =
-      backBtn()+
-      '<h2 class="question" style="margin-top:10px; margin-bottom:16px;">Imagine your usual commute&hellip; without the usual hassle.</h2>'+
-      '<p class="pitch-line">No crowded metro. No changing lines. No waiting for an auto.</p>'+
-      '<p class="pitch-line">Just a cab, students from your college, and a fare split between you.</p>'+
-      '<p class="pitch-strong">Cab comfort. Metro-like price.</p>'+
-      '<p class="pitch-q">Interested in sharing a cab every day?</p>'+
-      '<div class="options" role="radiogroup" id="interestOptions">'+
-        '<div class="option'+yesSel+'" role="radio" aria-checked="'+(yesSel?"true":"false")+'" tabindex="0" data-interest="yes">'+
-          '<span>🟢 Yes, I&rsquo;d love this</span><span class="dot"></span></div>'+
-        '<div class="option'+noSel+'" role="radio" aria-checked="'+(noSel?"true":"false")+'" tabindex="0" data-interest="no">'+
-          '<span>⚪ Maybe / Not right now</span><span class="dot"></span></div>'+
-      '</div>'+
-      '<div class="spacer"></div>'+
-      '<div class="cta-area"><button type="button" class="btn" id="p8next">Next →</button></div>'+
-      '<div class="safe-bottom"></div>';
-
-    document.getElementById("backBtn").addEventListener("click", function(){ goto(7); });
-    document.querySelectorAll("#interestOptions .option").forEach(function(el){
-      var pick = function(){
-        state.data.shared_cab_interest = el.getAttribute("data-interest");
-        document.querySelectorAll("#interestOptions .option").forEach(function(o){
-          o.classList.remove("sel"); o.setAttribute("aria-checked","false");
-        });
-        el.classList.add("sel"); el.setAttribute("aria-checked","true");
-      };
-      el.addEventListener("click", pick);
-      el.addEventListener("keydown", function(e){ if (e.key==="Enter"||e.key===" "){ e.preventDefault(); pick(); } });
-    });
-    document.getElementById("p8next").addEventListener("click", function(){
-      if (!state.data.shared_cab_interest){ alertInline("interestOptions","Please choose an option to continue."); return; }
-      submitAndShowPage9();
+      submitAndShowFinalPage();
     });
   }
 
   /* ---------- submission ---------- */
-  function submitAndShowPage9(){
+  function submitAndShowFinalPage(){
     if (!state.submitted){
       state.submitted = true;
       persistSubmission();
     }
-    goto(9);
+    goto(TOTAL_STEPS);
     launchConfetti();
   }
 
@@ -1154,8 +917,8 @@
     }catch(e){ /* best-effort, never block the user */ }
   }
 
-  /* ---------- PAGE 9: final confirmation ---------- */
-  function renderPage9(){
+  /* ---------- PAGE 5: final confirmation ---------- */
+  function renderPage5(){
     var d = state.data;
     screenEl.innerHTML =
       '<div class="confetti" id="confettiHost"></div>'+
@@ -1175,8 +938,6 @@
         '<div class="commute-route">'+esc(d.nearest_metro_station)+' → College</div>'+
         '<div class="commute-tags">'+
           (d.travel_modes || []).map(function(m){ return '<span class="commute-tag">'+esc(m)+'</span>'; }).join("")+
-          '<span class="commute-tag">'+esc(d.daily_one_way_travel_time)+' min/day</span>'+
-          '<span class="commute-tag">₹'+esc(d.daily_travel_spend)+'/day</span>'+
         '</div>'+
       '</div>'+
       '<p class="memorable">Your next ride might not be one you take alone.</p>'+
@@ -1211,15 +972,15 @@
 
      STEP 0 INVENTORY (the answers every placeholder below was filled from)
      ---------------------------------------------------------------------
-     1. Screens .... 9, routed by state.step + goto()/render(). Resume =
+     1. Screens .... 5, routed by state.step + goto()/render(). Resume =
                      restore state.step and jump straight there.
      2. Identity ... full_name + phone_number (required), college
                      (required), email_optional.
-     3. Complete ... reaching step 9 (page 8's interest answer submits).
+     3. Complete ... reaching step 5 (page 4's travel-mode selection submits).
      4. Repeatable . NONE. Every answer is a single value (radios + text
                      inputs), so there is no long-format detail tab — the
                      playbook's 2.3 "Brands tab" pattern does not apply.
-     5. Outbound ... NONE on the page today. Page 9 promises "we'll
+     5. Outbound ... NONE on the page today. Page 5 promises "we'll
                      WhatsApp you" but ships no link. CTA injection below
                      is therefore CONFIG-GATED: leave the link constants
                      empty and the page renders exactly as it does now.
@@ -1523,7 +1284,7 @@
     }catch(e){}
   })();
 
-  /* ---- CTA injection (page 9 only, and only for links that exist) ----
+  /* ---- CTA injection (page 5 only, and only for links that exist) ----
      Step 0 found no outbound links on this page. With the config
      constants empty this injects nothing and the page is byte-identical
      in behaviour to before; paste a link in and the button appears,
@@ -1656,7 +1417,7 @@
     if (!t) return;
     if (t.classList.contains('back-btn')) feedback('back');
     else if (t.classList.contains('option') || t.classList.contains('chip')) feedback('select');
-    else if (t.id === 'p8next') return; // the finish flourish covers this one
+    else if (t.id === 'p4next') return; // the finish flourish covers this one
     else feedback('advance');
   }, true);
 
@@ -1669,17 +1430,11 @@
      existing validation and state handling rather than duplicating it. */
   var AUTO_ADVANCE       = false;
   var AUTO_ADVANCE_CHIPS = false;
-  var AUTO_ADVANCE_MAP = [
-    // page 4 is deliberately absent: it is multi-select now, so advancing on
-    // the first tap would make it impossible to pick a second mode
-    { pick: '#feelOptions .option',     next: 'p7next', ms: 320 },
-    { pick: '#interestOptions .option', next: 'p8next', ms: 380 },
-    // chips get longer: tapping one reveals the "₹120/day is ₹3,120+ every
-    // month" insight, and moving on before that lands wastes the whole point
-    // of the screen. Typing a number still needs Next, by design.
-    { pick: '#spendChips .chip',        next: 'p5next', ms: 900, chips: true },
-    { pick: '#timeChips .chip',         next: 'p6next', ms: 900, chips: true }
-  ];
+  // page 4 is deliberately absent: it is multi-select, so advancing on the
+  // first tap would make it impossible to pick a second mode. No other
+  // remaining page (1-3, 5) is a single-tap choice screen, so this map is
+  // empty — kept as the hook point if a future page needs it.
+  var AUTO_ADVANCE_MAP = [];
 
   var autoAdvanceTimer = null;
   function bindAutoAdvance(){
@@ -1740,9 +1495,9 @@
     }
     lastRenderedStep = state.step;
     /* The final screen must not wait on the 700ms debounce. The existing
-       submitAndShowPage9() calls persistSubmission() BEFORE goto(9), so at
-       that point state.step is still 8 — this is the only place that sends
-       the row as 'complete'. */
+       submitAndShowFinalPage() calls persistSubmission() BEFORE goto(TOTAL_STEPS),
+       so at that point state.step is still 4 — this is the only place that
+       sends the row as 'complete'. */
     if (state.step === TOTAL_STEPS){ saveLocal(); flushProgress(); }
     else syncProgress();
   };

@@ -1,6 +1,6 @@
 # PicaPool Commute — tracked intent form
 
-The 9-step commute intent form, wired up per `PLAYBOOK.md`: a Google Sheet
+The 5-step commute intent form, wired up per `PLAYBOOK.md`: a Google Sheet
 is the database, Apps Script is the API, Vercel serves one static file.
 
 | File | What it is |
@@ -9,7 +9,7 @@ is the database, Apps Script is the API, Vercel serves one static file.
 | `picapool-commute-1.html` | The untouched original, kept as the reference. Not deployed. |
 | `apps-script/Code.gs` | The whole backend. Paste into the Sheet's Apps Script editor. |
 | `vercel.json` | Rewrites every path to `index.html`, so `/srcc` is a trackable slug with no server. |
-| `test/smoke.js` | Headless run of the whole page — walks all 9 steps and asserts every beacon. |
+| `test/smoke.js` | Headless run of the whole page — walks all 5 steps and asserts every beacon. |
 | `test/explode.js` | Unit test for the backend's multi-select explode logic, including the legacy-row recovery path. |
 
 Frontend `BUILD` is `2026-09-10-e`. Backend `CODE_VERSION` is `2026-09-10-b`.
@@ -28,11 +28,11 @@ Frontend `BUILD` is `2026-09-10-e`. Backend `CODE_VERSION` is `2026-09-10-b`.
 
 | Question | Answer for this page |
 |---|---|
-| Screens | 9, routed by `state.step` + `goto()`/`render()`. Resume works. |
+| Screens | 5, routed by `state.step` + `goto()`/`render()`. Resume works. |
 | Identity | `full_name` + `phone_number` (required), `college` (required), `email_optional`. |
-| Complete | reaching step 9 — page 8's interest answer submits. |
+| Complete | reaching step 5 — page 4's travel-mode selection submits. |
 | Repeatable data | **yes, as of the MSDF-HRC-024 refinement** — page 4 is multi-select, so playbook 2.3 applies: raw blob + summary cell on `Submissions`, exploded into a derived `TravelModes` tab. |
-| Outbound CTAs | **none on the page today.** Page 9 promises "we'll WhatsApp you" but ships no link. |
+| Outbound CTAs | **none on the page today.** Page 5 promises "we'll WhatsApp you" but ships no link. |
 | App smart link | none supplied. |
 | Referral incentive | none exists, so the referral code is tracked internally with no promise printed on screen. |
 
@@ -58,7 +58,7 @@ npm i --no-save jsdom && node test/smoke.js
 node test/explode.js   # 12 more, no dependencies
 ```
 
-It boots the real `index.html`, walks all 9 steps, and asserts the payload
+It boots the real `index.html`, walks all 5 steps, and asserts the payload
 of every beacon: slug/`?ref` capture, one stable session id, the partial →
 complete transition, resume-where-you-left-off, `?new=1` wiping the
 session, CTA injection and click stamping once a link is configured,
@@ -204,7 +204,7 @@ in-app WhatsApp and Instagram webviews refuse to construct an
 `AudioContext`, and an uncaught error there would kill every line after it,
 tracking included. iOS has no Vibration API at all, so haptics are simply a
 no-op there rather than an error. The flourish deliberately does *not* play
-for someone resuming straight onto step 9: there is no user gesture on that
+for someone resuming straight onto step 5: there is no user gesture on that
 load, so the browser would block the audio and the buzz would arrive out of
 nowhere.
 
@@ -242,7 +242,7 @@ var APP_SMART_LINK     = '';   // Instally/Branch link, if PicaPool has one
 var ENABLE_INVITE_CTA  = false; // leave false until a referral reward exists
 ```
 
-Empty = the feature stays off and page 9 renders exactly as it does now.
+Empty = the feature stays off and page 5 renders exactly as it does now.
 Paste a link in and you get, automatically:
 
 - a tracked button on the confirmation screen,
